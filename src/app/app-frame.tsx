@@ -4,9 +4,10 @@ import {
   AppShellHeader,
   AppShellMain,
   AppShellSidebar,
-  DropdownMenu,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
+  Menu,
+  MenuContent,
+  MenuItem,
+  MenuTrigger,
 } from '@doscientos/ui'
 import { Link } from '@tanstack/react-router'
 import Avatar from 'boring-avatars'
@@ -18,6 +19,7 @@ import {
   Gauge,
   LogOut,
   MoreHorizontal,
+  Menu as MenuIcon,
   Settings2,
   UsersRound,
 } from 'lucide-react'
@@ -28,6 +30,8 @@ export function AppFrame({ children }: { children: ReactNode }) {
   const [profile, setProfile] = useState(() =>
     profileFor(localStorage.getItem('spinola-demo-user')),
   )
+  const [mobileOpen, setMobileOpen] = useState(false)
+  const [profileMenuOpen, setProfileMenuOpen] = useState(false)
   useEffect(() => {
     const sync = () => {
       setLoggedIn(Boolean(localStorage.getItem('spinola-demo-user')))
@@ -39,7 +43,7 @@ export function AppFrame({ children }: { children: ReactNode }) {
   if (!loggedIn) return <main className="login-shell">{children}</main>
   return (
     <AppShell className="flex min-h-svh">
-      <AppShellSidebar className="app-sidebar hidden h-svh self-start border-r-0 bg-[#f4f5f3] p-5 md:block">
+      <AppShellSidebar className={`app-sidebar h-svh self-start border-r-0 bg-[#f4f5f3] p-5 ${mobileOpen ? 'mobile-open' : ''}`}>
         <div className="mb-10 px-2">
           <Link to="." className="brand-lockup" aria-label="Spínola">
             <img src="/brand/spinola-logo.png" alt="Fundación Spínola" className="brand-logo" />
@@ -77,8 +81,13 @@ export function AppFrame({ children }: { children: ReactNode }) {
           <SidebarItem label="Configuración" icon={Settings2} />
         </nav>
         <div className="sidebar-footer">
-          <DropdownMenuTrigger>
-            <button className="sidebar-profile-trigger" aria-label="Abrir menú de usuario" type="button">
+          <MenuTrigger isOpen={profileMenuOpen} onOpenChange={setProfileMenuOpen}>
+            <button
+              className="sidebar-profile-trigger"
+              aria-label="Abrir menú de usuario"
+              type="button"
+              onClick={() => setProfileMenuOpen((open) => !open)}
+            >
               <Avatar
                 size={30}
                 name={profile.name}
@@ -87,27 +96,37 @@ export function AppFrame({ children }: { children: ReactNode }) {
               />
               <span className="sidebar-profile-copy">
                 <strong>{profile.name}</strong>
-                <small>{profile.role} · {profile.centre}</small>
+                <small>
+                  {profile.role} · {profile.centre}
+                </small>
               </span>
               <MoreHorizontal size={16} />
             </button>
-            <DropdownMenu placement="top end" offset={8}>
-              <DropdownMenuItem
-                onAction={() => {
-                  localStorage.removeItem('spinola-demo-user')
-                  window.location.reload()
-                }}
-              >
-                <LogOut size={14} />
-                Cerrar sesión
-              </DropdownMenuItem>
-            </DropdownMenu>
-          </DropdownMenuTrigger>
+            <MenuContent placement="top end" offset={8} className="profile-menu-popover">
+              <Menu aria-label="Opciones de usuario">
+                <MenuItem
+                  id="logout"
+                  onPress={() => {
+                    localStorage.removeItem('spinola-demo-user')
+                    window.location.reload()
+                  }}
+                >
+                  <LogOut size={14} />
+                  Cerrar sesión
+                </MenuItem>
+              </Menu>
+            </MenuContent>
+          </MenuTrigger>
         </div>
       </AppShellSidebar>
+      {mobileOpen && <button className="mobile-sidebar-overlay" aria-label="Cerrar menú" onClick={() => setMobileOpen(false)} />}
       <AppShellMain className="app-main h-svh min-w-0 flex-1 overflow-hidden">
         <AppShellHeader className="app-header flex h-11 items-center justify-between">
+          <button className="mobile-menu-trigger" aria-label="Abrir navegación" onClick={() => setMobileOpen(true)}>
+            <MenuIcon size={18} />
+          </button>
           <span className="text-sm font-medium">Mi jornada</span>
+          <span className="mobile-header-spacer" />
         </AppShellHeader>
         <AppShellContent className="app-content h-[calc(100svh-2.75rem)] overflow-y-auto">
           <div className="mx-auto max-w-6xl p-4 sm:p-6">{children}</div>
