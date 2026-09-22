@@ -23,7 +23,7 @@ import {
   Settings2,
   UsersRound,
 } from 'lucide-react'
-import { useEffect, useState, type ReactNode } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
 
 export function AppFrame({ children }: { children: ReactNode }) {
   const [loggedIn, setLoggedIn] = useState(() => Boolean(localStorage.getItem('spinola-demo-user')))
@@ -32,6 +32,7 @@ export function AppFrame({ children }: { children: ReactNode }) {
   )
   const [mobileOpen, setMobileOpen] = useState(false)
   const [profileMenuOpen, setProfileMenuOpen] = useState(false)
+  const profileButtonRef = useRef<HTMLButtonElement>(null)
   useEffect(() => {
     const sync = () => {
       setLoggedIn(Boolean(localStorage.getItem('spinola-demo-user')))
@@ -80,44 +81,50 @@ export function AppFrame({ children }: { children: ReactNode }) {
           <SidebarItem label="Informes" icon={FolderKanban} />
           <SidebarItem label="Configuración" icon={Settings2} />
         </nav>
-        <div className="sidebar-footer">
-          <MenuTrigger isOpen={profileMenuOpen} onOpenChange={setProfileMenuOpen}>
-            <button
-              className="sidebar-profile-trigger"
-              aria-label="Abrir menú de usuario"
-              type="button"
-              onClick={() => setProfileMenuOpen((open) => !open)}
-            >
-              <Avatar
-                size={30}
-                name={profile.name}
-                variant="beam"
-                colors={['#f4c7b8', '#b9d9c2', '#e6c46c', '#9fb9d8', '#e8a7b9']}
-              />
-              <span className="sidebar-profile-copy">
-                <strong>{profile.name}</strong>
-                <small>
-                  {profile.role} · {profile.centre}
-                </small>
-              </span>
-              <MoreHorizontal size={16} />
-            </button>
-            <MenuContent placement="top end" offset={8} className="profile-menu-popover">
-              <Menu aria-label="Opciones de usuario">
-                <MenuItem
-                  id="logout"
-                  onPress={() => {
-                    localStorage.removeItem('spinola-demo-user')
-                    window.location.reload()
-                  }}
-                >
-                  <LogOut size={14} />
-                  Cerrar sesión
-                </MenuItem>
-              </Menu>
-            </MenuContent>
-          </MenuTrigger>
-        </div>
+        <MenuTrigger isOpen={profileMenuOpen} onOpenChange={setProfileMenuOpen}>
+          <button
+            ref={profileButtonRef}
+            className="sidebar-footer sidebar-profile-trigger"
+            aria-label="Abrir menú de usuario"
+            aria-expanded={profileMenuOpen}
+            aria-haspopup="menu"
+            type="button"
+            onClick={() => setProfileMenuOpen((open) => !open)}
+          >
+            <Avatar
+              size={30}
+              name={profile.name}
+              variant="beam"
+              colors={['#f4c7b8', '#b9d9c2', '#e6c46c', '#9fb9d8', '#e8a7b9']}
+            />
+            <span className="sidebar-profile-copy">
+              <strong>{profile.name}</strong>
+              <small>
+                {profile.role} · {profile.centre}
+              </small>
+            </span>
+            <MoreHorizontal size={16} />
+          </button>
+          <MenuContent
+            placement="top end"
+            offset={8}
+            triggerRef={profileButtonRef}
+            className="profile-menu-popover"
+          >
+            <Menu aria-label="Opciones de usuario">
+              <MenuItem
+                id="logout"
+                onPress={() => {
+                  localStorage.removeItem('spinola-demo-user')
+                  window.location.reload()
+                }}
+              >
+                <LogOut size={14} />
+                Cerrar sesión
+              </MenuItem>
+            </Menu>
+          </MenuContent>
+        </MenuTrigger>
       </AppShellSidebar>
       {mobileOpen && <button className="mobile-sidebar-overlay" aria-label="Cerrar menú" onClick={() => setMobileOpen(false)} />}
       <AppShellMain className="app-main h-svh min-w-0 flex-1 overflow-hidden">
@@ -132,7 +139,7 @@ export function AppFrame({ children }: { children: ReactNode }) {
           <div className="mx-auto max-w-6xl p-4 sm:p-6">{children}</div>
         </AppShellContent>
       </AppShellMain>
-    </AppShell>
+    </AppShell >
   )
 }
 
