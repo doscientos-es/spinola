@@ -4,6 +4,9 @@ import {
   AppShellHeader,
   AppShellMain,
   AppShellSidebar,
+  DropdownMenu,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
 } from '@doscientos/ui'
 import { Link } from '@tanstack/react-router'
 import Avatar from 'boring-avatars'
@@ -25,7 +28,6 @@ export function AppFrame({ children }: { children: ReactNode }) {
   const [profile, setProfile] = useState(() =>
     profileFor(localStorage.getItem('spinola-demo-user')),
   )
-  const [profileMenuOpen, setProfileMenuOpen] = useState(false)
   useEffect(() => {
     const sync = () => {
       setLoggedIn(Boolean(localStorage.getItem('spinola-demo-user')))
@@ -75,40 +77,32 @@ export function AppFrame({ children }: { children: ReactNode }) {
           <SidebarItem label="Configuración" icon={Settings2} />
         </nav>
         <div className="sidebar-footer">
-          <Avatar
-            size={30}
-            name={profile.name}
-            variant="beam"
-            colors={['#f4c7b8', '#b9d9c2', '#e6c46c', '#9fb9d8', '#e8a7b9']}
-          />
-          <div>
-            <strong>{profile.name}</strong>
-            <small>
-              {profile.role} · {profile.centre}
-            </small>
-          </div>
-          <button
-            className="footer-menu-trigger"
-            aria-label="Abrir opciones de usuario"
-            aria-expanded={profileMenuOpen}
-            onClick={() => setProfileMenuOpen((open) => !open)}
-          >
-            <MoreHorizontal size={16} />
-          </button>
-          {profileMenuOpen && (
-            <div className="profile-menu" role="menu">
-              <button
-                role="menuitem"
-                onClick={() => {
+          <DropdownMenuTrigger>
+            <button className="sidebar-profile-trigger" aria-label="Abrir menú de usuario" type="button">
+              <Avatar
+                size={30}
+                name={profile.name}
+                variant="beam"
+                colors={['#f4c7b8', '#b9d9c2', '#e6c46c', '#9fb9d8', '#e8a7b9']}
+              />
+              <span className="sidebar-profile-copy">
+                <strong>{profile.name}</strong>
+                <small>{profile.role} · {profile.centre}</small>
+              </span>
+              <MoreHorizontal size={16} />
+            </button>
+            <DropdownMenu placement="top end" offset={8}>
+              <DropdownMenuItem
+                onAction={() => {
                   localStorage.removeItem('spinola-demo-user')
                   window.location.reload()
                 }}
               >
                 <LogOut size={14} />
-                Cambiar de usuario
-              </button>
-            </div>
-          )}
+                Cerrar sesión
+              </DropdownMenuItem>
+            </DropdownMenu>
+          </DropdownMenuTrigger>
         </div>
       </AppShellSidebar>
       <AppShellMain className="app-main h-svh min-w-0 flex-1 overflow-hidden">

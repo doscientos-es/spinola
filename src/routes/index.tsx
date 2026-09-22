@@ -865,6 +865,14 @@ function ManagerView({
   const [templateActive, setTemplateActive] = useState(
     () => localStorage.getItem('spinola-demo-template') !== 'false',
   )
+  const [selectedTeacher, setSelectedTeacher] = useState('lucia')
+  const [teacherTemplate, setTeacherTemplate] = useState('plantilla-3eso')
+  const [teacherSaved, setTeacherSaved] = useState(false)
+  const teachers = [
+    { id: 'lucia', name: 'Lucía Martín', detail: '3º ESO · 18 h lectivas', initials: 'LM' },
+    { id: 'diego', name: 'Diego Ruiz', detail: '2º ESO · 16 h lectivas', initials: 'DR' },
+    { id: 'ines', name: 'Inés Valdés', detail: 'Bachillerato · 20 h lectivas', initials: 'IV' },
+  ]
   useEffect(() => {
     localStorage.setItem('spinola-demo-template', String(templateActive))
   }, [templateActive])
@@ -886,6 +894,56 @@ function ManagerView({
           Hoy · 24 septiembre 2026
         </div>
       </div>
+      <section className="staff-panel">
+        <div className="staff-panel-head">
+          <div>
+            <h2>Profesores y horarios</h2>
+            <p className="calendar-hint">Asigna una plantilla y edítala cuando cambie el curso.</p>
+          </div>
+          <button className="template-action" onClick={() => setTemplateActive(true)}>+ Nueva plantilla</button>
+        </div>
+        <div className="staff-layout">
+          <div className="staff-list">
+            {teachers.map((teacher) => (
+              <button className={`staff-row ${selectedTeacher === teacher.id ? 'selected' : ''}`} key={teacher.id} onClick={() => { setSelectedTeacher(teacher.id); setTeacherSaved(false) }}>
+                <span className="staff-avatar">{teacher.initials}</span>
+                <span><strong>{teacher.name}</strong><small>{teacher.detail}</small></span>
+                <span className="staff-chevron">›</span>
+              </button>
+            ))}
+          </div>
+          <div className="assignment-panel">
+            <span className="eyebrow">Horario asignado</span>
+            <strong>{teachers.find((teacher) => teacher.id === selectedTeacher)?.name}</strong>
+            <label>Plantilla<select value={teacherTemplate} onChange={(event) => { setTeacherTemplate(event.target.value); setTeacherSaved(false) }}>
+              <option value="plantilla-3eso">3º ESO · Mañana</option>
+              <option value="plantilla-tarde">Turno de tarde · 16:00–21:00</option>
+              <option value="plantilla-mixta">Jornada mixta · mañana y tarde</option>
+            </select></label>
+            <div className="assignment-summary"><span>08:30–14:30</span><span>·</span><span>21 bloques</span></div>
+            <button className="primary-action" onClick={() => setTeacherSaved(true)}>{teacherSaved ? 'Plantilla guardada' : 'Guardar asignación'}</button>
+          </div>
+        </div>
+      </section>
+      <section className="live-panel">
+        <div className="staff-panel-head">
+          <div><h2>Estado del equipo</h2><p className="calendar-hint">Consulta rápida de quién está fichando hoy.</p></div>
+          <span className="live-indicator"><i /> Actualizado ahora</span>
+        </div>
+        <div className="live-grid">
+          {[
+            ['Lucía Martín', 'En clase · Matemáticas', '08:24', 'active'],
+            ['Diego Ruiz', 'En pausa', '02:18 fichado', 'pause'],
+            ['Inés Valdés', 'Pendiente de fichar', 'Primer bloque · 16:00', 'pending'],
+          ].map(([name, status, time, state]) => (
+            <div className="live-row" key={name}>
+              <span className={`live-dot ${state}`} />
+              <div><strong>{name}</strong><small>{status}</small></div>
+              <b>{time}</b>
+            </div>
+          ))}
+        </div>
+      </section>
       <div className="manager-grid">
         <section className="manager-main">
           <div className="section-heading">
