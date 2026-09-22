@@ -4,10 +4,9 @@ import {
   AppShellHeader,
   AppShellMain,
   AppShellSidebar,
-  Menu,
-  MenuContent,
-  MenuItem,
-  MenuTrigger,
+  Button,
+  DropdownMenu,
+  DropdownMenuItem,
 } from '@doscientos/ui'
 import { Link } from '@tanstack/react-router'
 import Avatar from 'boring-avatars'
@@ -23,7 +22,7 @@ import {
   Settings2,
   UsersRound,
 } from 'lucide-react'
-import { useEffect, useRef, useState, type ReactNode } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 
 export function AppFrame({ children }: { children: ReactNode }) {
   const [loggedIn, setLoggedIn] = useState(() => Boolean(localStorage.getItem('spinola-demo-user')))
@@ -31,8 +30,6 @@ export function AppFrame({ children }: { children: ReactNode }) {
     profileFor(localStorage.getItem('spinola-demo-user')),
   )
   const [mobileOpen, setMobileOpen] = useState(false)
-  const [profileMenuOpen, setProfileMenuOpen] = useState(false)
-  const profileButtonRef = useRef<HTMLButtonElement>(null)
   useEffect(() => {
     const sync = () => {
       setLoggedIn(Boolean(localStorage.getItem('spinola-demo-user')))
@@ -44,7 +41,9 @@ export function AppFrame({ children }: { children: ReactNode }) {
   if (!loggedIn) return <main className="login-shell">{children}</main>
   return (
     <AppShell className="flex min-h-svh">
-      <AppShellSidebar className={`app-sidebar h-svh self-start border-r-0 bg-[#f4f5f3] p-5 ${mobileOpen ? 'mobile-open' : ''}`}>
+      <AppShellSidebar
+        className={`app-sidebar h-svh self-start border-r-0 bg-[#f4f5f3] p-5 ${mobileOpen ? 'mobile-open' : ''}`}
+      >
         <div className="mb-10 px-2">
           <Link to="." className="brand-lockup" aria-label="Spínola">
             <img src="/brand/spinola-logo.png" alt="Fundación Spínola" className="brand-logo" />
@@ -81,55 +80,58 @@ export function AppFrame({ children }: { children: ReactNode }) {
           <SidebarItem label="Informes" icon={FolderKanban} />
           <SidebarItem label="Configuración" icon={Settings2} />
         </nav>
-        <MenuTrigger isOpen={profileMenuOpen} onOpenChange={setProfileMenuOpen}>
-          <button
-            ref={profileButtonRef}
-            className="sidebar-footer sidebar-profile-trigger"
-            aria-label="Abrir menú de usuario"
-            aria-expanded={profileMenuOpen}
-            aria-haspopup="menu"
-            type="button"
-            onClick={() => setProfileMenuOpen((open) => !open)}
+        <DropdownMenu
+          trigger={
+            <Button
+              variant="ghost"
+              className="sidebar-footer sidebar-profile-trigger"
+              aria-label="Abrir menú de usuario"
+            >
+              <Avatar
+                size={30}
+                name={profile.name}
+                variant="beam"
+                colors={['#f4c7b8', '#b9d9c2', '#e6c46c', '#9fb9d8', '#e8a7b9']}
+              />
+              <span className="sidebar-profile-copy">
+                <strong>{profile.name}</strong>
+                <small>
+                  {profile.role} · {profile.centre}
+                </small>
+              </span>
+              <MoreHorizontal size={16} />
+            </Button>
+          }
+          placement="top end"
+          offset={8}
+          className="profile-menu-popover"
+        >
+          <DropdownMenuItem
+            id="logout"
+            onAction={() => {
+              localStorage.removeItem('spinola-demo-user')
+              window.location.reload()
+            }}
           >
-            <Avatar
-              size={30}
-              name={profile.name}
-              variant="beam"
-              colors={['#f4c7b8', '#b9d9c2', '#e6c46c', '#9fb9d8', '#e8a7b9']}
-            />
-            <span className="sidebar-profile-copy">
-              <strong>{profile.name}</strong>
-              <small>
-                {profile.role} · {profile.centre}
-              </small>
-            </span>
-            <MoreHorizontal size={16} />
-          </button>
-          <MenuContent
-            placement="top end"
-            offset={8}
-            triggerRef={profileButtonRef}
-            className="profile-menu-popover"
-          >
-            <Menu aria-label="Opciones de usuario">
-              <MenuItem
-                id="logout"
-                onPress={() => {
-                  localStorage.removeItem('spinola-demo-user')
-                  window.location.reload()
-                }}
-              >
-                <LogOut size={14} />
-                Cerrar sesión
-              </MenuItem>
-            </Menu>
-          </MenuContent>
-        </MenuTrigger>
+            <LogOut size={14} />
+            Cerrar sesión
+          </DropdownMenuItem>
+        </DropdownMenu>
       </AppShellSidebar>
-      {mobileOpen && <button className="mobile-sidebar-overlay" aria-label="Cerrar menú" onClick={() => setMobileOpen(false)} />}
+      {mobileOpen && (
+        <button
+          className="mobile-sidebar-overlay"
+          aria-label="Cerrar menú"
+          onClick={() => setMobileOpen(false)}
+        />
+      )}
       <AppShellMain className="app-main h-svh min-w-0 flex-1 overflow-hidden">
         <AppShellHeader className="app-header flex h-11 items-center justify-between">
-          <button className="mobile-menu-trigger" aria-label="Abrir navegación" onClick={() => setMobileOpen(true)}>
+          <button
+            className="mobile-menu-trigger"
+            aria-label="Abrir navegación"
+            onClick={() => setMobileOpen(true)}
+          >
             <MenuIcon size={18} />
           </button>
           <span className="text-sm font-medium">Mi jornada</span>
@@ -139,7 +141,7 @@ export function AppFrame({ children }: { children: ReactNode }) {
           <div className="mx-auto max-w-6xl p-4 sm:p-6">{children}</div>
         </AppShellContent>
       </AppShellMain>
-    </AppShell >
+    </AppShell>
   )
 }
 

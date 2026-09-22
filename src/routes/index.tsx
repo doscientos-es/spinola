@@ -115,7 +115,9 @@ function SpinolaHome() {
   )
   const [showGuide, setShowGuide] = useState(false)
   const [clockExpanded, setClockExpanded] = useState(false)
-  const [nowMinutes, setNowMinutes] = useState(() => new Date().getHours() * 60 + new Date().getMinutes())
+  const [nowMinutes, setNowMinutes] = useState(
+    () => new Date().getHours() * 60 + new Date().getMinutes(),
+  )
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [createStartMin, setCreateStartMin] = useState(480)
   const [createOpen, setCreateOpen] = useState(false)
@@ -861,6 +863,7 @@ function ManagerView({
   approved: boolean
   onApprove: () => void
 }) {
+  const [activeTab, setActiveTab] = useState<'overview' | 'team' | 'incidents'>('overview')
   const [scenario, setScenario] = useState('pending')
   const [templateActive, setTemplateActive] = useState(
     () => localStorage.getItem('spinola-demo-template') !== 'false',
@@ -877,15 +880,175 @@ function ManagerView({
     localStorage.setItem('spinola-demo-template', String(templateActive))
   }, [templateActive])
   const pending = scenario !== 'empty' && !approved
+  const selectedTeacherData = teachers.find((teacher) => teacher.id === selectedTeacher)
+  const livePeople = [
+    ['Lucía Martín', 'En clase · Matemáticas', '08:24', 'active'],
+    ['Diego Ruiz', 'En pausa', '02:18 fichado', 'pause'],
+    ['Inés Valdés', 'Pendiente de fichar', 'Primer bloque · 16:00', 'pending'],
+  ]
+
+  const incidentCard =
+    scenario === 'empty' ? (
+      <div className="empty-state">
+        <ShieldCheck size={26} />
+        <strong>Este centro aún no tiene horario activo</strong>
+        <span>La demo mostraría aquí la carga y validación de una plantilla.</span>
+        <button onClick={() => setScenario('pending')}>Ver escenario con datos</button>
+      </div>
+    ) : (
+      <div className={`incident-card ${approved ? 'approved' : ''}`}>
+        <div className="incident-top">
+          <span className="status-tag">{approved ? 'Aprobada' : 'Pendiente'}</span>
+          <span>Actualizada hace 4 min</span>
+        </div>
+        <h3>Reunión de departamento desplazada</h3>
+        <p>Lucía Martín · DOC-001 · Santa Rafaela</p>
+        <div className="comparison">
+          <div>
+            <small>Planificado</small>
+            <strong>12:00 – 13:00</strong>
+            <span>Bolsa complementaria</span>
+          </div>
+          <div className="arrow">→</div>
+          <div>
+            <small>Registrado</small>
+            <strong>12:15 – 13:15</strong>
+            <span>60 min imputables</span>
+          </div>
+        </div>
+        <div className="incident-foot">
+          <span>
+            <Info size={14} /> El sistema no rellena el hueco automáticamente.
+          </span>
+          {!approved && (
+            <button onClick={onApprove}>
+              <Check size={14} /> Aprobar imputación
+            </button>
+          )}
+        </div>
+      </div>
+    )
+
+  const livePanel = (
+    <section className="live-panel">
+      <div className="staff-panel-head">
+        <div>
+          <h2>Ahora mismo</h2>
+          <p className="calendar-hint">Estado de fichaje del equipo de hoy.</p>
+        </div>
+        <span className="live-indicator">
+          <i /> Actualizado ahora
+        </span>
+      </div>
+      <div className="live-grid">
+        {livePeople.map(([name, status, time, state]) => (
+          <div className="live-row" key={name}>
+            <span className={`live-dot ${state}`} />
+            <div>
+              <strong>{name}</strong>
+              <small>{status}</small>
+            </div>
+            <b>{time}</b>
+          </div>
+        ))}
+      </div>
+    </section>
+  )
+
+  const staffPanel = (
+    <section className="staff-panel">
+      <div className="staff-panel-head">
+        <div>
+          <p className="eyebrow">Configuración del centro</p>
+          <h2>Equipo y horarios</h2>
+          <p className="calendar-hint">Selecciona una persona para revisar su asignación.</p>
+        </div>
+        <button className="template-action" onClick={() => setTemplateActive(true)}>
+          + Nueva plantilla
+        </button>
+      </div>
+      <div className="staff-layout">
+        <div className="staff-list">
+          {teachers.map((teacher) => (
+            <button
+              className={`staff-row ${selectedTeacher === teacher.id ? 'selected' : ''}`}
+              key={teacher.id}
+              onClick={() => {
+                setSelectedTeacher(teacher.id)
+                setTeacherSaved(false)
+              }}
+            >
+              <span className="staff-avatar">{teacher.initials}</span>
+              <span>
+                <strong>{teacher.name}</strong>
+                <small>{teacher.detail}</small>
+              </span>
+              <span className="staff-chevron">›</span>
+            </button>
+          ))}
+        </div>
+        <div className="assignment-panel">
+          <span className="eyebrow">Horario asignado</span>
+          <strong>{selectedTeacherData?.name}</strong>
+          <label>
+            Plantilla
+            <select
+              value={teacherTemplate}
+              onChange={(event) => {
+                setTeacherTemplate(event.target.value)
+                setTeacherSaved(false)
+              }}
+            >
+              <option value="plantilla-3eso">3º ESO · Mañana</option>
+              <option value="plantilla-tarde">Turno de tarde · 16:00–21:00</option>
+              <option value="plantilla-mixta">Jornada mixta · mañana y tarde</option>
+            </select>
+          </label>
+          <div className="assignment-summary">
+            <span>08:30–14:30</span>
+            <span>·</span>
+            <span>21 bloques</span>
+          </div>
+          <button className="primary-action" onClick={() => setTeacherSaved(true)}>
+            {teacherSaved ? 'Plantilla guardada' : 'Guardar asignación'}
+          </button>
+        </div>
+      </div>
+    </section>
+  )
+
+  const activityList = (
+    <div className="activity-list">
+      <div>
+        <span className="activity-dot green" />
+        <strong>Santa Rafaela</strong>
+        <span>32 personas fichadas · 2 incidencias</span>
+        <b>En curso</b>
+      </div>
+      <div>
+        <span className="activity-dot orange" />
+        <strong>San José</strong>
+        <span>28 personas fichadas · 1 incidencia</span>
+        <b>Revisar</b>
+      </div>
+      <div>
+        <span className="activity-dot gray" />
+        <strong>Centro piloto norte</strong>
+        <span>Horario pendiente de validar</span>
+        <b>Preparación</b>
+      </div>
+    </div>
+  )
+
   return (
     <>
       <div className="hero-row">
         <div>
           <p className="eyebrow">{user.role === 'sede' ? 'Vista de sede' : 'Vista de dirección'}</p>
-          <h1>Revisión del equipo</h1>
+          <h1>Resumen del centro</h1>
           <p className="hero-subtitle">
-            Controla incidencias y valida la imputación del tiempo sin perder el contexto del
-            horario docente.
+            Lo importante de hoy, en un solo lugar. Revisa sólo las excepciones y deja que el equipo
+            siga su jornada.
           </p>
         </div>
         <div className="date-chip">
@@ -894,184 +1057,140 @@ function ManagerView({
           Hoy · 24 septiembre 2026
         </div>
       </div>
-      <section className="staff-panel">
-        <div className="staff-panel-head">
-          <div>
-            <h2>Profesores y horarios</h2>
-            <p className="calendar-hint">Asigna una plantilla y edítala cuando cambie el curso.</p>
-          </div>
-          <button className="template-action" onClick={() => setTemplateActive(true)}>+ Nueva plantilla</button>
-        </div>
-        <div className="staff-layout">
-          <div className="staff-list">
-            {teachers.map((teacher) => (
-              <button className={`staff-row ${selectedTeacher === teacher.id ? 'selected' : ''}`} key={teacher.id} onClick={() => { setSelectedTeacher(teacher.id); setTeacherSaved(false) }}>
-                <span className="staff-avatar">{teacher.initials}</span>
-                <span><strong>{teacher.name}</strong><small>{teacher.detail}</small></span>
-                <span className="staff-chevron">›</span>
-              </button>
-            ))}
-          </div>
-          <div className="assignment-panel">
-            <span className="eyebrow">Horario asignado</span>
-            <strong>{teachers.find((teacher) => teacher.id === selectedTeacher)?.name}</strong>
-            <label>Plantilla<select value={teacherTemplate} onChange={(event) => { setTeacherTemplate(event.target.value); setTeacherSaved(false) }}>
-              <option value="plantilla-3eso">3º ESO · Mañana</option>
-              <option value="plantilla-tarde">Turno de tarde · 16:00–21:00</option>
-              <option value="plantilla-mixta">Jornada mixta · mañana y tarde</option>
-            </select></label>
-            <div className="assignment-summary"><span>08:30–14:30</span><span>·</span><span>21 bloques</span></div>
-            <button className="primary-action" onClick={() => setTeacherSaved(true)}>{teacherSaved ? 'Plantilla guardada' : 'Guardar asignación'}</button>
-          </div>
-        </div>
-      </section>
-      <section className="live-panel">
-        <div className="staff-panel-head">
-          <div><h2>Estado del equipo</h2><p className="calendar-hint">Consulta rápida de quién está fichando hoy.</p></div>
-          <span className="live-indicator"><i /> Actualizado ahora</span>
-        </div>
-        <div className="live-grid">
-          {[
-            ['Lucía Martín', 'En clase · Matemáticas', '08:24', 'active'],
-            ['Diego Ruiz', 'En pausa', '02:18 fichado', 'pause'],
-            ['Inés Valdés', 'Pendiente de fichar', 'Primer bloque · 16:00', 'pending'],
-          ].map(([name, status, time, state]) => (
-            <div className="live-row" key={name}>
-              <span className={`live-dot ${state}`} />
-              <div><strong>{name}</strong><small>{status}</small></div>
-              <b>{time}</b>
-            </div>
-          ))}
-        </div>
-      </section>
-      <div className="manager-grid">
-        <section className="manager-main">
-          <div className="section-heading">
-            <div>
-              <h2>Incidencias para revisar</h2>
-              <p className="calendar-hint">Un cambio siempre conserva motivo y trazabilidad.</p>
-            </div>
-            <span className="count-pill">{pending ? '1 pendiente' : 'Todo al día'}</span>
-          </div>
-          {scenario === 'empty' ? (
-            <div className="empty-state">
-              <ShieldCheck size={26} />
-              <strong>Este centro aún no tiene horario activo</strong>
-              <span>La demo mostraría aquí la carga y validación de una plantilla.</span>
-              <button onClick={() => setScenario('pending')}>Ver escenario con datos</button>
-            </div>
-          ) : (
-            <div className={`incident-card ${approved ? 'approved' : ''}`}>
-              <div className="incident-top">
-                <span className="status-tag">{approved ? 'Aprobada' : 'Pendiente'}</span>
-                <span>Actualizada hace 4 min</span>
-              </div>
-              <h3>Reunión de departamento desplazada</h3>
-              <p>Lucía Martín · DOC-001 · Santa Rafaela</p>
-              <div className="comparison">
-                <div>
-                  <small>Planificado</small>
-                  <strong>12:00 – 13:00</strong>
-                  <span>Bolsa complementaria</span>
-                </div>
-                <div className="arrow">→</div>
-                <div>
-                  <small>Registrado</small>
-                  <strong>12:15 – 13:15</strong>
-                  <span>60 min imputables</span>
-                </div>
-              </div>
-              <div className="incident-foot">
-                <span>
-                  <Info size={14} /> El sistema no rellena el hueco automáticamente.
-                </span>
-                {!approved && (
-                  <button onClick={onApprove}>
-                    <Check size={14} /> Aprobar imputación
-                  </button>
-                )}
-              </div>
-            </div>
-          )}
-          <div className="section-heading lower-heading">
-            <div>
-              <h2>Actividad reciente</h2>
-              <p className="calendar-hint">Resumen de los centros piloto</p>
-            </div>
-            <select
-              className="scenario-select"
-              value={scenario}
-              onChange={(event) => setScenario(event.target.value)}
-            >
-              <option value="pending">Escenario: incidencia pendiente</option>
-              <option value="empty">Escenario: sin horario activo</option>
-            </select>
-          </div>
-          <div className="activity-list">
-            <div>
-              <span className="activity-dot green" />
-              <strong>Santa Rafaela</strong>
-              <span>32 personas fichadas · 2 incidencias</span>
-              <b>En curso</b>
-            </div>
-            <div>
-              <span className="activity-dot orange" />
-              <strong>San José</strong>
-              <span>28 personas fichadas · 1 incidencia</span>
-              <b>Revisar</b>
-            </div>
-            <div>
-              <span className="activity-dot gray" />
-              <strong>Centro piloto norte</strong>
-              <span>Horario pendiente de validar</span>
-              <b>Preparación</b>
-            </div>
-          </div>
-        </section>
-        <aside className="manager-side">
-          <div className="template-card">
-            <div>
-              <span className="status-tag">{templateActive ? 'Activa' : 'Borrador'}</span>
-              <strong>Plantilla · 3º ESO</strong>
-              <small>Santa Rafaela · curso 2026/27</small>
-            </div>
-            <button onClick={() => setTemplateActive((current) => !current)}>
-              {templateActive ? 'Editar plantilla' : 'Activar plantilla'}
+      <nav className="manager-tabs" aria-label="Secciones de dirección">
+        {[
+          ['overview', 'Resumen'],
+          ['team', 'Equipo y horarios'],
+          ['incidents', 'Revisiones'],
+        ].map(([id, label]) => (
+          <button
+            key={id}
+            className={activeTab === id ? 'active' : ''}
+            aria-selected={activeTab === id}
+            role="tab"
+            onClick={() => setActiveTab(id as 'overview' | 'team' | 'incidents')}
+          >
+            {label}
+            {id === 'incidents' && pending && <span>1</span>}
+          </button>
+        ))}
+      </nav>
+      {activeTab === 'overview' && (
+        <div className="manager-overview">
+          <div className="manager-kpis">
+            <button className="manager-kpi" onClick={() => setActiveTab('incidents')}>
+              <span>Revisiones pendientes</span>
+              <strong>{pending ? '1' : '0'}</strong>
+              <small>{pending ? 'Requiere tu aprobación' : 'Todo al día'}</small>
             </button>
-            <p>
-              El profesorado recibe automáticamente sus bloques y sólo confirma la jornada al
-              terminar.
-            </p>
+            <button className="manager-kpi" onClick={() => setActiveTab('team')}>
+              <span>Equipo fichado hoy</span>
+              <strong>
+                86 <small>/ 94</small>
+              </strong>
+              <small>91% del equipo del centro</small>
+            </button>
+            <button className="manager-kpi" onClick={() => setActiveTab('team')}>
+              <span>Plantilla del centro</span>
+              <strong>{templateActive ? 'Activa' : 'Borrador'}</strong>
+              <small>3º ESO · curso 2026/27</small>
+            </button>
           </div>
-          <div className="side-kpi">
-            <span>Personas fichadas hoy</span>
-            <strong>
-              86 <small>/ 94</small>
-            </strong>
-            <div className="progress">
-              <i style={{ width: '91%' }} />
+          <div className="manager-overview-grid">
+            <section className="manager-main">
+              <div className="section-heading">
+                <div>
+                  <p className="eyebrow">Siguiente acción</p>
+                  <h2>Revisa esta incidencia</h2>
+                  <p className="calendar-hint">
+                    Sólo necesitas intervenir cuando hay una diferencia.
+                  </p>
+                </div>
+                <span className="count-pill">{pending ? '1 pendiente' : 'Todo al día'}</span>
+              </div>
+              {incidentCard}
+            </section>
+            <aside className="manager-side">
+              <div className="template-card">
+                <div>
+                  <span className="status-tag">{templateActive ? 'Activa' : 'Borrador'}</span>
+                  <strong>Plantilla · 3º ESO</strong>
+                  <small>Santa Rafaela · curso 2026/27</small>
+                </div>
+                <button onClick={() => setActiveTab('team')}>Gestionar horarios</button>
+                <p>
+                  El equipo recibe automáticamente sus bloques y confirma la jornada al terminar.
+                </p>
+              </div>
+              <div className="side-note">
+                <ShieldCheck size={17} />
+                <div>
+                  <strong>Tu regla de revisión</strong>
+                  <p>
+                    Presencia, planificación e imputación son datos distintos. Dirección valida sólo
+                    las excepciones.
+                  </p>
+                </div>
+              </div>
+            </aside>
+          </div>
+        </div>
+      )}
+      {activeTab === 'team' && (
+        <div className="manager-tab-content">
+          {staffPanel}
+          {livePanel}
+        </div>
+      )}
+      {activeTab === 'incidents' && (
+        <div className="manager-grid manager-tab-content">
+          <section className="manager-main">
+            <div className="section-heading">
+              <div>
+                <p className="eyebrow">Control y trazabilidad</p>
+                <h2>Incidencias para revisar</h2>
+                <p className="calendar-hint">Un cambio siempre conserva motivo y trazabilidad.</p>
+              </div>
+              <span className="count-pill">{pending ? '1 pendiente' : 'Todo al día'}</span>
             </div>
-            <small>91% del equipo piloto</small>
-          </div>
-          <div className="side-kpi">
-            <span>Horas imputadas</span>
-            <strong>
-              1.248 <small>min</small>
-            </strong>
-            <small>Lectivas y complementarias</small>
-          </div>
-          <div className="side-note">
-            <ShieldCheck size={17} />
-            <div>
-              <strong>La regla está clara</strong>
-              <p>
-                Presencia, planificación e imputación son tres datos distintos. Dirección valida
-                sólo las excepciones.
-              </p>
+            {incidentCard}
+            <div className="section-heading lower-heading">
+              <div>
+                <h2>Actividad reciente</h2>
+                <p className="calendar-hint">Resumen de los centros piloto</p>
+              </div>
+              <select
+                className="scenario-select"
+                value={scenario}
+                onChange={(event) => setScenario(event.target.value)}
+              >
+                <option value="pending">Escenario: incidencia pendiente</option>
+                <option value="empty">Escenario: sin horario activo</option>
+              </select>
             </div>
-          </div>
-        </aside>
-      </div>
+            {activityList}
+          </section>
+          <aside className="manager-side">
+            <div className="side-kpi">
+              <span>Personas fichadas hoy</span>
+              <strong>
+                86 <small>/ 94</small>
+              </strong>
+              <div className="progress">
+                <i style={{ width: '91%' }} />
+              </div>
+              <small>91% del equipo piloto</small>
+            </div>
+            <div className="side-kpi">
+              <span>Horas imputadas</span>
+              <strong>
+                1.248 <small>min</small>
+              </strong>
+              <small>Lectivas y complementarias</small>
+            </div>
+          </aside>
+        </div>
+      )}
     </>
   )
 }
