@@ -6,9 +6,22 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
+  Button,
+  IconButton,
 } from '@doscientos/ui'
-import { createFileRoute } from '@tanstack/react-router'
-import { Check, ChevronDown, Info, ShieldCheck } from 'lucide-react'
+import { createFileRoute, Navigate, useNavigate } from '@tanstack/react-router'
+import {
+  Check,
+  ChevronDown,
+  ChevronLeft,
+  ChevronRight,
+  Info,
+  Pencil,
+  Plus,
+  ShieldCheck,
+  Trash2,
+  UserPlus,
+} from 'lucide-react'
 import { animate } from 'motion/react'
 import { useEffect, useMemo, useRef, useState, type DragEvent, type PointerEvent } from 'react'
 
@@ -366,29 +379,7 @@ export function SpinolaHome({
     }
   }, [clockExpanded])
   if (!userId) {
-    return (
-      <DemoLogin
-        onSelect={(id) => {
-          localStorage.setItem('spinola-demo-user', id)
-          window.dispatchEvent(new Event('spinola-demo-login'))
-          setUserId(id)
-        }}
-        onReset={() => {
-          ;[
-            'spinola-demo-user',
-            'spinola-demo-started',
-            'spinola-demo-started-at',
-            'spinola-demo-ended-at',
-            'spinola-demo-attendance-saved',
-            'spinola-demo-correction-requested',
-            'spinola-demo-approved',
-            'spinola-demo-blocks',
-            'spinola-demo-completed',
-          ].forEach((key) => localStorage.removeItem(key))
-          setUserId(null)
-        }}
-      />
-    )
+    return <Navigate to="/acceso" replace />
   }
   return (
     <div className="spinola-page">
@@ -425,12 +416,23 @@ export function SpinolaHome({
   )
 
   function TeacherView() {
+    const teacherWeekDays = [
+      { short: 'Lun', label: 'Lunes', date: '21 sep.', activities: ['Matemáticas · 3º ESO', 'Tutoría · 2º B'] },
+      { short: 'Mar', label: 'Martes', date: '22 sep.', activities: ['Lengua · 1º ESO', 'Reunión de departamento'] },
+      { short: 'Mié', label: 'Miércoles', date: '23 sep.', activities: ['Matemáticas · 3º ESO', 'Preparación y evaluación'] },
+      { short: 'Jue', label: 'Jueves', date: '24 sep.', activities: ['Inglés · 2º ESO', 'Guardia · Patio'] },
+      { short: 'Vie', label: 'Viernes', date: '25 sep.', activities: ['Matemáticas · 3º ESO', 'Atención a familias'] },
+    ]
+    const [selectedDay, setSelectedDay] = useState(1)
+    const selectedTeacherDay = teacherWeekDays[selectedDay] ?? teacherWeekDays[1]!
+    const moveTeacherDay = (offset: number) =>
+      setSelectedDay((current) => Math.max(0, Math.min(teacherWeekDays.length - 1, current + offset)))
     return (
       <>
         <div className="page-intro">
           <div>
             <h1>Mi jornada</h1>
-            <p>Martes, 22 de septiembre · Santa Rafaela</p>
+            <p>{selectedTeacherDay.label}, {selectedTeacherDay.date} · Santa Rafaela</p>
           </div>
           <div className="date-chip">
             <strong>Horario habitual</strong>
@@ -568,21 +570,16 @@ export function SpinolaHome({
             <span className="count-pill">Semana del 21–25 sep.</span>
           </div>
           <div className="teacher-week-grid">
-            {[
-              ['Lun', ['Matemáticas · 3º ESO', 'Tutoría · 2º B']],
-              ['Mar', ['Lengua · 1º ESO', 'Reunión de departamento']],
-              ['Mié', ['Matemáticas · 3º ESO', 'Preparación y evaluación']],
-              ['Jue', ['Inglés · 2º ESO', 'Guardia · Patio']],
-              ['Vie', ['Matemáticas · 3º ESO', 'Atención a familias']],
-            ].map(([day, activities], index) => (
+            {teacherWeekDays.map((day, index) => (
               <button
                 className={`teacher-week-day ${index === 1 ? 'today' : ''}`}
-                key={String(day)}
-                onClick={() => setShowGuide(false)}
+                aria-pressed={selectedDay === index}
+                key={day.short}
+                onClick={() => { setSelectedDay(index); setShowGuide(false) }}
               >
-                <strong>{String(day)}</strong>
+                <strong>{day.short}</strong>
                 <span>{index === 1 ? 'Hoy' : `${2 + index} bloques`}</span>
-                {(activities as string[]).map((activity) => (
+                {day.activities.map((activity) => (
                   <small key={activity}>{activity}</small>
                 ))}
               </button>
@@ -594,16 +591,18 @@ export function SpinolaHome({
             <div className="section-heading">
               <div>
                 <h2>Horario previsto</h2>
-                <p className="calendar-hint">Tu horario previsto para hoy</p>
+                <p className="calendar-hint">Tu horario previsto para {selectedTeacherDay.label.toLowerCase()}</p>
               </div>
               <div className="calendar-actions">
+                <button className="day-nav-button" onClick={() => moveTeacherDay(-1)} disabled={selectedDay === 0} aria-label="Día anterior">‹</button>
+                <button className="day-nav-button" onClick={() => moveTeacherDay(1)} disabled={selectedDay === teacherWeekDays.length - 1} aria-label="Día siguiente">›</button>
                 <button className="guide-trigger" onClick={() => setShowGuide((value) => !value)}>
                   <Info size={14} /> Cómo funciona
                 </button>
               </div>
             </div>
             <div className="day-calendar">
-              {nowMinutes >= 480 && nowMinutes <= 1260 && (
+              {selectedDay === 1 && nowMinutes >= 480 && nowMinutes <= 1260 && (
                 <div
                   className="current-time-line"
                   style={{ top: `${(nowMinutes - 480) * 1.05 + 8}px` }}
@@ -987,7 +986,8 @@ export function SpinolaHome({
   }
 }
 
-function DemoLogin({ onSelect, onReset }: { onSelect: (id: string) => void; onReset: () => void }) {
+export function DemoLogin({ onSelect, onReset }: { onSelect: (id: string) => void; onReset: () => void }) {
+  const navigate = useNavigate()
   return (
     <div className="login-page">
       <div className="login-panel">
@@ -1002,7 +1002,14 @@ function DemoLogin({ onSelect, onReset }: { onSelect: (id: string) => void; onRe
         </p>
         <div className="login-users">
           {demoUsers.map((demoUser) => (
-            <button key={demoUser.id} className="login-user" onClick={() => onSelect(demoUser.id)}>
+            <button
+              key={demoUser.id}
+              className="login-user"
+              onClick={() => {
+                onSelect(demoUser.id)
+                navigate({ to: demoUser.role === 'docente' ? '/' : '/resumen' })
+              }}
+            >
               <span className="login-avatar">{demoUser.initials}</span>
               <span>
                 <strong>{demoUser.name}</strong>
@@ -1352,9 +1359,13 @@ function ManagerView({
             Semana {overviewWeekOffset === 0 ? 'actual' : overviewWeekOffset > 0 ? `+${overviewWeekOffset}` : overviewWeekOffset} · 21–25 sep. 2026
           </div>
           <div className="manager-calendar-actions">
-            <button onClick={() => setOverviewWeekOffset((value) => value - 1)} aria-label="Semana anterior">‹</button>
-            <button onClick={() => setOverviewWeekOffset(0)}>Esta semana</button>
-            <button onClick={() => setOverviewWeekOffset((value) => value + 1)} aria-label="Semana siguiente">›</button>
+            <IconButton label="Semana anterior" variant="outline" size="icon-sm" onPress={() => setOverviewWeekOffset((value) => value - 1)}>
+              <ChevronLeft size={15} />
+            </IconButton>
+            <Button variant="outline" size="sm" onPress={() => setOverviewWeekOffset(0)}>Esta semana</Button>
+            <IconButton label="Semana siguiente" variant="outline" size="icon-sm" onPress={() => setOverviewWeekOffset((value) => value + 1)}>
+              <ChevronRight size={15} />
+            </IconButton>
             <select value={scheduleFilter} onChange={(event) => setScheduleFilter(event.target.value)} aria-label="Filtrar profesores">
               <option value="all">Todos los profesores</option>
               {scheduleTeachers.map((teacher) => <option key={teacher.id} value={teacher.id}>{teacher.name}</option>)}
@@ -1363,15 +1374,16 @@ function ManagerView({
               <option value="all">Todas las clases</option>
               {scheduleClasses.map((className) => <option key={className} value={className}>{className}</option>)}
             </select>
-            <button className="schedule-add" onClick={() => setScheduleCreateOpen((open) => !open)}>
-              {scheduleCreateOpen ? 'Cerrar' : '+ Añadir bloque'}
-            </button>
-            <button
-              className={`schedule-repeat-toggle ${scheduleRepeats ? 'active' : ''}`}
-              onClick={() => setScheduleRepeats((value) => !value)}
+            <Button size="sm" onPress={() => setScheduleCreateOpen((open) => !open)}>
+              {scheduleCreateOpen ? 'Cerrar' : <><Plus size={13} /> Añadir bloque</>}
+            </Button>
+            <Button
+              variant={scheduleRepeats ? 'secondary' : 'outline'}
+              size="sm"
+              onPress={() => setScheduleRepeats((value) => !value)}
             >
               {scheduleRepeats ? 'Horario habitual activo' : 'Usar esta semana como horario habitual'}
-            </button>
+            </Button>
           </div>
         </div>
         <div className="manager-calendar" style={{ '--calendar-days': days.length } as React.CSSProperties}>
@@ -1785,8 +1797,8 @@ function ManagerView({
                   {teacher.id === 'ines' ? '—' : teacher.id === 'diego' ? '08:05' : '08:24'}
                 </td>
                 <td className="staff-actions">
-                  <button type="button" title={`Editar a ${teacher.name}`} aria-label={`Editar a ${teacher.name}`}>✏️</button>
-                  <button type="button" title={`Eliminar a ${teacher.name}`} aria-label={`Eliminar a ${teacher.name}`}>🗑️</button>
+                  <button type="button" title={`Editar a ${teacher.name}`} aria-label={`Editar a ${teacher.name}`}><Pencil size={13} /></button>
+                  <button type="button" title={`Eliminar a ${teacher.name}`} aria-label={`Eliminar a ${teacher.name}`}><Trash2 size={13} /></button>
                 </td>
               </tr>
             ))}
@@ -1794,7 +1806,7 @@ function ManagerView({
         </table>
       </div>
       <div className="staff-add-row">
-        <button type="button" className="staff-add-button">＋ Añadir profesor</button>
+        <button type="button" className="staff-add-button"><UserPlus size={14} /> Añadir profesor</button>
       </div>
     </section>
   )

@@ -440,10 +440,9 @@ body {
 .manager-week-overview { margin: 1rem 0 1.25rem; border: 0; border-radius: 0; background: transparent; padding: 0; }
 .manager-calendar-heading { align-items: flex-start; }
 .manager-calendar-actions { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
-.manager-calendar-actions button, .manager-calendar-actions select { min-height: 32px; border: 1px solid #dfe5df; border-radius: 8px; background: #fff; padding: 5px 9px; color: #334155; font-size: 11px; font-weight: 650; cursor: pointer; }
-.manager-calendar-actions button:hover { background: #f5f8f5; }
+.manager-calendar-actions select { min-height: 32px; border: 1px solid #dfe5df; border-radius: 8px; background: #fff; padding: 5px 9px; color: #334155; font-size: 11px; font-weight: 650; cursor: pointer; }
 .manager-calendar-week-label { margin: 0; color: #334155; font-size: 12px; font-weight: 500; }
-.manager-calendar { display: grid; width: 100%; grid-template-columns: 58px repeat(var(--calendar-days), minmax(150px, 1fr)); min-width: 820px; overflow-x: auto; border-top: 1px solid #e9edf0; border-left: 1px solid #e9edf0; }
+.manager-calendar { display: grid; width: 100%; grid-template-columns: 58px repeat(var(--calendar-days), minmax(150px, 1fr)); min-width: 820px; overflow: hidden; border: 1px solid #e2e9e4; border-radius: 14px; background: #fff; }
 .manager-calendar-times, .manager-calendar-day { min-width: 0; }
 .manager-calendar-times { padding-top: 38px; color: #94a3b8; font-size: 10px; text-align: right; }
 .manager-calendar-times > span { display: block; height: 50px; padding: 0 7px 0 0; transform: translateY(-7px); }
@@ -466,6 +465,7 @@ body {
 .manager-calendar-block.tutoria, .manager-calendar-block.reunion, .manager-calendar-block.preparacion, .manager-calendar-block.complementaria { background: #f1eafe; color: #6d28d9; }
 .manager-calendar-block.guardia { background: #fff1db; color: #b45309; }
 .manager-calendar-actions .schedule-add { border-color: #2d654d; background: #2d654d; color: #fff; }
+.manager-calendar-actions .schedule-add { display: inline-flex; align-items: center; gap: 5px; }
 .manager-calendar-actions .schedule-repeat-toggle { border-color: #c9dfd0; background: #eef7f0; color: #2d654d; }
 .manager-week-table { overflow-x: auto; }
 .manager-week-row { display: grid; min-width: 760px; grid-template-columns: 170px repeat(5, minmax(130px, 1fr)); border-top: 1px solid #eef1f5; }
@@ -3662,6 +3662,9 @@ body {
   gap: 6px;
 }
 .staff-actions button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   border: 1px solid #dfe5df;
   border-radius: 7px;
   background: #fff;
@@ -3680,6 +3683,9 @@ body {
   padding-top: 10px;
 }
 .staff-add-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   border: 1px solid #c9dfd0;
   border-radius: 8px;
   background: #eef7f0;
@@ -4181,4 +4187,19 @@ body {
   font-size: 0.75rem;
   text-decoration: underline;
   cursor: pointer;
+}
+
+.day-nav-button {
+  min-width: 28px;
+  height: 28px;
+  border: 1px solid #d8e5df;
+  border-radius: 8px;
+  background: #fff;
+  color: #315247;
+  cursor: pointer;
+}
+
+.day-nav-button:disabled {
+  cursor: not-allowed;
+  opacity: .4;
 }
