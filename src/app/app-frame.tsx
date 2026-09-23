@@ -192,7 +192,7 @@ export function AppFrame({ children }: { children: ReactNode }) {
           <span className="mobile-header-spacer" />
         </AppShellHeader>
         <AppShellContent className="app-content h-[calc(100svh-2.75rem)] overflow-y-auto">
-          <div className="mx-auto max-w-6xl p-4 sm:p-6">{children}</div>
+          <div className="w-full p-4 sm:p-6">{children}</div>
         </AppShellContent>
       </AppShellMain>
     </AppShell>
