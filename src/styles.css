@@ -443,7 +443,7 @@ body {
 .manager-calendar-actions button, .manager-calendar-actions select { min-height: 32px; border: 1px solid #dfe5df; border-radius: 8px; background: #fff; padding: 5px 9px; color: #334155; font-size: 11px; font-weight: 650; cursor: pointer; }
 .manager-calendar-actions button:hover { background: #f5f8f5; }
 .manager-calendar-week-label { margin: -4px 0 10px 58px; color: #64748b; font-size: 11px; }
-.manager-calendar { display: grid; grid-template-columns: 58px repeat(var(--calendar-days), minmax(150px, 1fr)); min-width: 820px; overflow-x: auto; border-top: 1px solid #e9edf0; border-left: 1px solid #e9edf0; }
+.manager-calendar { display: grid; width: 100%; grid-template-columns: 58px repeat(var(--calendar-days), minmax(150px, 1fr)); min-width: 820px; overflow-x: auto; border-top: 1px solid #e9edf0; border-left: 1px solid #e9edf0; }
 .manager-calendar-times, .manager-calendar-day { min-width: 0; }
 .manager-calendar-times { padding-top: 38px; color: #94a3b8; font-size: 10px; text-align: right; }
 .manager-calendar-times > span { display: block; height: 50px; padding: 0 7px 0 0; transform: translateY(-7px); }
@@ -1517,6 +1517,13 @@ body {
 }
 .manager-page h1 {
   font-size: clamp(26px, 3vw, 34px);
+}
+.manager-page,
+.manager-tab-content,
+.center-schedule-panel,
+.manager-week-overview {
+  width: 100%;
+  max-width: none;
 }
 .manager-page .eyebrow {
   display: none;
@@ -4123,4 +4130,17 @@ body {
   .timeline-card {
     overflow-x: auto;
   }
+}
+ .legal-demo-note {
+  display: flex;
+  gap: 0.55rem;
+  align-items: flex-start;
+  margin: 0.75rem 0 1rem;
+  padding: 0.75rem 0.9rem;
+  border: 1px solid #d8e5df;
+  border-radius: 0.75rem;
+  background: #f3f8f5;
+  color: #315247;
+  font-size: 0.82rem;
+  line-height: 1.45;
 }
