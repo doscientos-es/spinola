@@ -27,6 +27,7 @@ type Block = {
 type CenterScheduleBlock = {
   id: string
   teacherId: string
+  day?: number
   label: string
   subject: string
   kind: 'lectiva' | 'complementaria' | 'tutoria' | 'guardia' | 'reunion' | 'preparacion'
@@ -967,6 +968,10 @@ function ManagerView({
     loadLocal('spinola-demo-center-schedule', centerSchedule),
   )
   const [scheduleFilter, setScheduleFilter] = useState('all')
+  const [scheduleDay, setScheduleDay] = useState(1)
+  const [scheduleRepeats, setScheduleRepeats] = useState(
+    () => localStorage.getItem('spinola-demo-schedule-repeat') !== 'false',
+  )
   const [scheduleSelectedId, setScheduleSelectedId] = useState<string | null>(null)
   const [scheduleDragId, setScheduleDragId] = useState<string | null>(null)
   const scheduleDragMoved = useRef(false)
@@ -995,6 +1000,9 @@ function ManagerView({
   useEffect(() => {
     localStorage.setItem('spinola-demo-center-schedule', JSON.stringify(scheduleBlocks))
   }, [scheduleBlocks])
+  useEffect(() => {
+    localStorage.setItem('spinola-demo-schedule-repeat', String(scheduleRepeats))
+  }, [scheduleRepeats])
   const pending = scenario !== 'empty' && !approved
   const scheduleTeachers = teachers.map((teacher) => ({
     ...teacher,
@@ -1006,7 +1014,7 @@ function ManagerView({
   const scheduleHours = Array.from({ length: 27 }, (_, index) => 480 + index * 30)
   function scheduledHoursFor(teacherId: string) {
     const minutes = scheduleBlocks
-      .filter((block) => block.teacherId === teacherId)
+      .filter((block) => block.teacherId === teacherId && (block.day ?? 1) === scheduleDay)
       .reduce((total, block) => total + block.endMin - block.startMin, 0)
     return `${Math.floor(minutes / 60)} h${minutes % 60 ? ` ${minutes % 60} min` : ''}`
   }
@@ -1020,6 +1028,13 @@ function ManagerView({
       .reduce((total, block) => total + block.endMin - block.startMin, 0)
     return { lectiva, complementaria }
   }
+  const days = [
+    { id: 1, label: 'Lunes' },
+    { id: 2, label: 'Martes' },
+    { id: 3, label: 'Miércoles' },
+    { id: 4, label: 'Jueves' },
+    { id: 5, label: 'Viernes' },
+  ]
   function moveCenterScheduleBlock(
     event: DragEvent<HTMLElement>,
     teacherId: string,
@@ -1087,6 +1102,7 @@ function ManagerView({
     const newBlock: CenterScheduleBlock = {
       id: editingScheduleId ?? `schedule-${Date.now()}`,
       teacherId: scheduleCreateTeacher,
+      day: scheduleDay,
       label,
       subject: 'Aula por asignar',
       kind: scheduleCreateKind,
@@ -1177,6 +1193,27 @@ function ManagerView({
             </select>
           </label>
         </div>
+      </div>
+      <div className="schedule-week-controls" role="tablist" aria-label="Día del horario">
+        {days.map((day) => (
+          <button
+            key={day.id}
+            className={scheduleDay === day.id ? 'active' : ''}
+            onClick={() => setScheduleDay(day.id)}
+            role="tab"
+            aria-selected={scheduleDay === day.id}
+          >
+            {day.label}
+          </button>
+        ))}
+        <label className="schedule-repeat-toggle">
+          <input
+            type="checkbox"
+            checked={scheduleRepeats}
+            onChange={(event) => setScheduleRepeats(event.target.checked)}
+          />
+          Repetir cada semana
+        </label>
       </div>
       <Dialog open={scheduleCreateOpen} onOpenChange={setScheduleCreateOpen}>
         <DialogContent className="schedule-dialog" showCloseButton>
@@ -1422,7 +1459,9 @@ function ManagerView({
                 </div>
               )}
               {scheduleBlocks
-                .filter((block) => block.teacherId === teacher.id)
+                .filter(
+                  (block) => block.teacherId === teacher.id && (block.day ?? 1) === scheduleDay,
+                )
                 .map((block) => (
                   <button
                     className={`center-schedule-block ${block.kind} ${scheduleDragId === block.id ? 'dragging' : ''}`}
@@ -1461,7 +1500,7 @@ function ManagerView({
                     type="button"
                   >
                     <strong>{block.label}</strong>
-                    <small>{block.subject}</small>
+                    <small>{block.subject} · {scheduleRepeats ? 'Cada semana' : 'Solo esta semana'}</small>
                     <em>
                       {formatTime(block.startMin)}–{formatTime(block.endMin)}
                     </em>
