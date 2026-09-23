@@ -38,7 +38,6 @@ export function AppFrame({ children }: { children: ReactNode }) {
       '/resumen': 'overview',
       '/horario': 'schedule',
       '/profesores': 'teachers',
-      '/plantillas': 'templates',
       '/revisiones': 'incidents',
     }[location.pathname]
     if (routeTab) setManagerTab(routeTab)
@@ -108,12 +107,6 @@ export function AppFrame({ children }: { children: ReactNode }) {
               icon={UsersRound}
               active={managerTab === 'teachers'}
               onClick={() => selectManagerTab('teachers')}
-            />
-            <SidebarItem
-              label="Plantillas"
-              icon={FolderKanban}
-              active={managerTab === 'templates'}
-              onClick={() => selectManagerTab('templates')}
             />
             <SidebarItem
               label="Revisiones"
@@ -211,7 +204,6 @@ export function AppFrame({ children }: { children: ReactNode }) {
       overview: '/resumen',
       schedule: '/horario',
       teachers: '/profesores',
-      templates: '/plantillas',
       incidents: '/revisiones',
     }[tab]
     if (route) void navigate({ to: route })

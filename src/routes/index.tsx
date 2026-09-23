@@ -151,7 +151,7 @@ const centerSchedule: CenterScheduleBlock[] = [
 export function SpinolaHome({
   initialManagerTab = 'schedule',
 }: {
-  initialManagerTab?: 'schedule' | 'overview' | 'teachers' | 'templates' | 'incidents'
+  initialManagerTab?: 'schedule' | 'overview' | 'teachers' | 'incidents'
 }) {
   const [userId, setUserId] = useState<string | null>(() =>
     localStorage.getItem('spinola-demo-user'),
@@ -970,17 +970,17 @@ function ManagerView({
   user: DemoUser
   approved: boolean
   onApprove: () => void
-  initialTab: 'schedule' | 'overview' | 'teachers' | 'templates' | 'incidents'
+  initialTab: 'schedule' | 'overview' | 'teachers' | 'incidents'
   nowMinutes: number
 }) {
   const [activeTab, setActiveTab] = useState<
-    'schedule' | 'overview' | 'teachers' | 'templates' | 'incidents'
+    'schedule' | 'overview' | 'teachers' | 'incidents'
   >(initialTab)
   useEffect(() => {
     const onManagerTab = (event: Event) => {
       const tab = (event as CustomEvent<string>).detail
-      if (['schedule', 'overview', 'teachers', 'templates', 'incidents'].includes(tab)) {
-        setActiveTab(tab as 'schedule' | 'overview' | 'teachers' | 'templates' | 'incidents')
+      if (['schedule', 'overview', 'teachers', 'incidents'].includes(tab)) {
+        setActiveTab(tab as 'schedule' | 'overview' | 'teachers' | 'incidents')
       }
     }
     window.addEventListener('spinola-manager-tab', onManagerTab)
@@ -1268,14 +1268,12 @@ function ManagerView({
             {day.label}
           </button>
         ))}
-        <label className="schedule-repeat-toggle">
-          <input
-            type="checkbox"
-            checked={scheduleRepeats}
-            onChange={(event) => setScheduleRepeats(event.target.checked)}
-          />
-          Repetir cada semana
-        </label>
+        <button
+          className={`schedule-repeat-toggle ${scheduleRepeats ? 'active' : ''}`}
+          onClick={() => setScheduleRepeats((value) => !value)}
+        >
+          {scheduleRepeats ? 'Horario habitual activo' : 'Usar esta semana como horario habitual'}
+        </button>
         <button className="schedule-copy-week" onClick={copyDayToWeek}>
           Copiar {days.find((day) => day.id === scheduleDay)?.label.toLowerCase()} al resto
         </button>
@@ -1802,7 +1800,6 @@ function ManagerView({
       'Revisa lo importante de hoy y actúa sólo sobre las excepciones.',
     ],
     teachers: ['Profesores', 'Asigna horarios y consulta el detalle de cada persona.'],
-    templates: ['Plantillas', 'Crea horarios base para reutilizarlos cuando encajen.'],
     incidents: ['Revisiones', 'Valida las diferencias entre lo planificado y lo registrado.'],
   }[activeTab]
 
@@ -1852,7 +1849,6 @@ function ManagerView({
           {staffPanel}
         </div>
       )}
-      {activeTab === 'templates' && <div className="manager-tab-content">{templatesPanel}</div>}
       {activeTab === 'incidents' && (
         <div className="manager-grid manager-tab-content">
           <section className="manager-main">
