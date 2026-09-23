@@ -437,12 +437,12 @@ body {
 .teacher-week-day span { color: #64748b; font-size: 0.72rem; }
 .teacher-week-day small { color: #334155; font-size: 0.72rem; line-height: 1.25; }
 
-.manager-week-overview { margin: 1rem 0 1.25rem; border: 1px solid var(--border-subtle, #e2e8f0); border-radius: 1.25rem; background: #fff; padding: 1.1rem; }
+.manager-week-overview { margin: 1rem 0 1.25rem; border: 0; border-radius: 0; background: transparent; padding: 0; }
 .manager-calendar-heading { align-items: flex-start; }
 .manager-calendar-actions { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
 .manager-calendar-actions button, .manager-calendar-actions select { min-height: 32px; border: 1px solid #dfe5df; border-radius: 8px; background: #fff; padding: 5px 9px; color: #334155; font-size: 11px; font-weight: 650; cursor: pointer; }
 .manager-calendar-actions button:hover { background: #f5f8f5; }
-.manager-calendar-week-label { margin: -4px 0 10px 58px; color: #64748b; font-size: 11px; }
+.manager-calendar-week-label { margin: 0; color: #334155; font-size: 12px; font-weight: 500; }
 .manager-calendar { display: grid; width: 100%; grid-template-columns: 58px repeat(var(--calendar-days), minmax(150px, 1fr)); min-width: 820px; overflow-x: auto; border-top: 1px solid #e9edf0; border-left: 1px solid #e9edf0; }
 .manager-calendar-times, .manager-calendar-day { min-width: 0; }
 .manager-calendar-times { padding-top: 38px; color: #94a3b8; font-size: 10px; text-align: right; }

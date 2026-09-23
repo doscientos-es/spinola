@@ -441,7 +441,7 @@ export function SpinolaHome({
             <div className="clock-copy">
               <div className="clock-heading">
                 <span>Mi jornada</span>
-                <em>{started ? 'En curso' : paused ? 'En pausa' : 'Sin iniciar'}</em>
+                <em>{attendanceSaved ? 'Guardada' : started ? 'En curso' : paused ? 'En pausa' : 'Sin iniciar'}</em>
               </div>
               <strong>{attendanceSaved ? `${startedAt}–${endedAt}` : startedAt || '—'}</strong>
               <small>
@@ -870,7 +870,7 @@ export function SpinolaHome({
               <div className="review-head">
                 <div>
                   <strong id="review-title">Termina tu jornada</strong>
-                  <span>Marca lo que has hecho y elimina lo que finalmente no ocurrió.</span>
+                  <span>Confirma lo realizado. Si hay una diferencia, solicita una corrección para que quede trazabilidad.</span>
                 </div>
                 <button
                   className="review-close"
@@ -1323,26 +1323,12 @@ function ManagerView({
           </label>
         </div>
       </div>
-      <div className="schedule-week-controls" role="tablist" aria-label="Día del horario">
-        {days.map((day) => (
-          <button
-            key={day.id}
-            className={scheduleDay === day.id ? 'active' : ''}
-            onClick={() => setScheduleDay(day.id)}
-            role="tab"
-            aria-selected={scheduleDay === day.id}
-          >
-            {day.label}
-          </button>
-        ))}
+      <div className="schedule-week-controls">
         <button
           className={`schedule-repeat-toggle ${scheduleRepeats ? 'active' : ''}`}
           onClick={() => setScheduleRepeats((value) => !value)}
         >
           {scheduleRepeats ? 'Horario habitual activo' : 'Usar esta semana como horario habitual'}
-        </button>
-        <button className="schedule-copy-week" onClick={copyDayToWeek}>
-          Copiar {days.find((day) => day.id === scheduleDay)?.label.toLowerCase()} al resto
         </button>
       </div>
       {scheduleOverlaps().length > 0 && (
@@ -1353,9 +1339,8 @@ function ManagerView({
       )}
       <section className="manager-week-overview" aria-label="Calendario semanal del equipo docente">
         <div className="section-heading manager-calendar-heading">
-          <div>
-            <h2>Calendario semanal</h2>
-            <p className="calendar-hint">Todos los profesores y sus bloques de un vistazo</p>
+          <div className="manager-calendar-week-label">
+            Semana {overviewWeekOffset === 0 ? 'actual' : overviewWeekOffset > 0 ? `+${overviewWeekOffset}` : overviewWeekOffset} · 21–25 sep. 2026
           </div>
           <div className="manager-calendar-actions">
             <button onClick={() => setOverviewWeekOffset((value) => value - 1)} aria-label="Semana anterior">‹</button>
@@ -1366,9 +1351,6 @@ function ManagerView({
               {scheduleTeachers.map((teacher) => <option key={teacher.id} value={teacher.id}>{teacher.name}</option>)}
             </select>
           </div>
-        </div>
-        <div className="manager-calendar-week-label">
-          Semana {overviewWeekOffset === 0 ? 'actual' : overviewWeekOffset > 0 ? `+${overviewWeekOffset}` : overviewWeekOffset} · 21–25 sep. 2026
         </div>
         <div className="manager-calendar" style={{ '--calendar-days': days.length } as React.CSSProperties}>
           <div className="manager-calendar-times">
@@ -1879,7 +1861,7 @@ function ManagerView({
   )
 
   const pageCopy = {
-    schedule: ['Horario general', 'Organiza todo el centro desde un único calendario.'],
+    schedule: ['Calendario semanal', 'Organiza todo el centro desde un único calendario.'],
     overview: [
       'Resumen del centro',
       'Revisa lo importante de hoy y actúa sólo sobre las excepciones.',
