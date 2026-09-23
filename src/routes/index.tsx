@@ -504,6 +504,36 @@ export function SpinolaHome({
             </p>
           </div>
         </div>
+        <section className="teacher-week-card">
+          <div className="section-heading">
+            <div>
+              <h2>Mi semana</h2>
+              <p className="calendar-hint">Vista general de tus clases y actividades previstas</p>
+            </div>
+            <span className="count-pill">Semana del 21–25 sep.</span>
+          </div>
+          <div className="teacher-week-grid">
+            {[
+              ['Lun', ['Matemáticas · 3º ESO', 'Tutoría · 2º B']],
+              ['Mar', ['Lengua · 1º ESO', 'Reunión de departamento']],
+              ['Mié', ['Matemáticas · 3º ESO', 'Preparación y evaluación']],
+              ['Jue', ['Inglés · 2º ESO', 'Guardia · Patio']],
+              ['Vie', ['Matemáticas · 3º ESO', 'Atención a familias']],
+            ].map(([day, activities], index) => (
+              <button
+                className={`teacher-week-day ${index === 1 ? 'today' : ''}`}
+                key={day}
+                onClick={() => setShowGuide(false)}
+              >
+                <strong>{day}</strong>
+                <span>{index === 1 ? 'Hoy' : `${2 + index} bloques`}</span>
+                {(activities as string[]).map((activity) => (
+                  <small key={activity}>{activity}</small>
+                ))}
+              </button>
+            ))}
+          </div>
+        </section>
         <section className="content-grid">
           <div className="timeline-card">
             <div className="section-heading">
