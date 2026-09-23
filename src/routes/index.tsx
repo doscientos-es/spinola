@@ -1118,6 +1118,20 @@ function ManagerView({
     setScheduleDragId(null)
     setScheduleDropPreview(null)
   }
+  function moveWeeklyScheduleBlock(event: DragEvent<HTMLElement>, day: number, minute: number) {
+    const blockId = event.dataTransfer.getData('center-schedule-block')
+    const dragged = scheduleBlocks.find((block) => block.id === blockId)
+    if (!dragged) return
+    const duration = dragged.endMin - dragged.startMin
+    const startMin = Math.max(480, Math.min(1260 - duration, Math.round(minute / 30) * 30))
+    setScheduleBlocks((current) =>
+      current.map((block) =>
+        block.id === blockId ? { ...block, day, startMin, endMin: startMin + duration } : block,
+      ),
+    )
+    setScheduleSelectedId(blockId)
+    setScheduleDragId(null)
+  }
   function previewCenterScheduleDrop(teacherId: string, minute: number) {
     if (!scheduleDragId) return
     const dragged = scheduleBlocks.find((block) => block.id === scheduleDragId)
@@ -1317,11 +1331,19 @@ function ManagerView({
                 <button className="manager-calendar-day-head" onClick={() => { setScheduleDay(day.id); setActiveTab('schedule') }}>
                   <strong>{day.label}</strong><small>{day.id === 2 ? 'Hoy' : ' '}</small>
                 </button>
-                <div className="manager-calendar-day-body">
+                <div
+                  className="manager-calendar-day-body"
+                  onDragOver={(event) => event.preventDefault()}
+                  onDrop={(event) => {
+                    const rect = event.currentTarget.getBoundingClientRect()
+                    const minute = 480 + ((event.clientY - rect.top) / 50) * 30
+                    moveWeeklyScheduleBlock(event, day.id, minute)
+                  }}
+                >
                   {scheduleHours.map((hour) => <span className="manager-calendar-line" key={hour} style={{ top: `${((hour - 480) / 30) * 50}px` }} />)}
                   {dayBlocks.map((block) => {
                     const teacher = scheduleTeachers.find((item) => item.id === block.teacherId)
-                    return <button className={`manager-calendar-block ${block.kind} ${teacher?.color ?? ''}`} key={block.id} style={{ top: `${((block.startMin - 480) / 30) * 50}px`, height: `${Math.max(34, ((block.endMin - block.startMin) / 30) * 50 - 4)}px` }} onClick={() => setScheduleSelectedId(block.id)}>
+                    return <button className={`center-schedule-block manager-calendar-block ${block.kind} ${teacher?.color ?? ''} ${scheduleDragId === block.id ? 'dragging' : ''}`} draggable key={block.id} style={{ top: `${((block.startMin - 480) / 30) * 50}px`, height: `${Math.max(34, ((block.endMin - block.startMin) / 30) * 50 - 4)}px` }} onClick={() => setScheduleSelectedId(block.id)} onDragStart={(event) => { setScheduleDragId(block.id); event.dataTransfer.setData('center-schedule-block', block.id) }} onDragEnd={() => setScheduleDragId(null)}>
                       <strong>{block.label}</strong><small>{teacher?.name} · {formatTime(block.startMin)}</small>
                     </button>
                   })}

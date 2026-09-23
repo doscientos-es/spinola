@@ -918,6 +918,15 @@ body {
   background: #f5f0fc;
   color: #76549b;
 }
+.manager-calendar-block {
+  left: 4px;
+  right: 4px;
+  padding: 6px 7px;
+  border-left-width: 4px;
+}
+.manager-calendar-block.green { border-left-color: #4d8c6c; }
+.manager-calendar-block.blue { border-left-color: #4b83c4; }
+.manager-calendar-block.orange { border-left-color: #d58b38; }
 .center-schedule-block strong {
   overflow: hidden;
   font-size: 10px;
