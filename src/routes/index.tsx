@@ -151,7 +151,7 @@ const centerSchedule: CenterScheduleBlock[] = [
 export function SpinolaHome({
   initialManagerTab = 'schedule',
 }: {
-  initialManagerTab?: 'schedule' | 'overview' | 'teachers' | 'incidents'
+  initialManagerTab?: 'schedule' | 'overview' | 'teachers' | 'incidents' | 'settings'
 }) {
   const [userId, setUserId] = useState<string | null>(() =>
     localStorage.getItem('spinola-demo-user'),
@@ -397,6 +397,20 @@ export function SpinolaHome({
           user={user}
           approved={approved}
           correctionRequested={correctionRequested}
+          onResetDemo={() => {
+            ;[
+              'spinola-demo-user',
+              'spinola-demo-started',
+              'spinola-demo-started-at',
+              'spinola-demo-ended-at',
+              'spinola-demo-attendance-saved',
+              'spinola-demo-correction-requested',
+              'spinola-demo-approved',
+              'spinola-demo-blocks',
+              'spinola-demo-completed',
+            ].forEach((key) => localStorage.removeItem(key))
+            window.location.reload()
+          }}
           onApprove={() => {
             setApproved(true)
             setCorrectionRequested(false)
@@ -1015,6 +1029,7 @@ function ManagerView({
   user,
   approved,
   correctionRequested,
+  onResetDemo,
   onApprove,
   initialTab,
   nowMinutes,
@@ -1023,17 +1038,18 @@ function ManagerView({
   approved: boolean
   correctionRequested: boolean
   onApprove: () => void
-  initialTab: 'schedule' | 'overview' | 'teachers' | 'incidents'
+  onResetDemo: () => void
+  initialTab: 'schedule' | 'overview' | 'teachers' | 'incidents' | 'settings'
   nowMinutes: number
 }) {
   const [activeTab, setActiveTab] = useState<
-    'schedule' | 'overview' | 'teachers' | 'incidents'
+    'schedule' | 'overview' | 'teachers' | 'incidents' | 'settings'
   >(initialTab)
   useEffect(() => {
     const onManagerTab = (event: Event) => {
       const tab = (event as CustomEvent<string>).detail
-      if (['schedule', 'overview', 'teachers', 'incidents'].includes(tab)) {
-        setActiveTab(tab as 'schedule' | 'overview' | 'teachers' | 'incidents')
+      if (['schedule', 'overview', 'teachers', 'incidents', 'settings'].includes(tab)) {
+        setActiveTab(tab as 'schedule' | 'overview' | 'teachers' | 'incidents' | 'settings')
       }
     }
     window.addEventListener('spinola-manager-tab', onManagerTab)
@@ -1302,35 +1318,6 @@ function ManagerView({
 
   const centerSchedulePanel = (
     <section className="center-schedule-panel">
-      <div className="schedule-panel-head schedule-panel-actions">
-        <div className="schedule-tools">
-          <button className="schedule-add" onClick={() => setScheduleCreateOpen((open) => !open)}>
-            {scheduleCreateOpen ? 'Cerrar' : '+ Añadir bloque'}
-          </button>
-          <label className="schedule-filter">
-            Ver horario de
-            <select
-              value={scheduleFilter}
-              onChange={(event) => setScheduleFilter(event.target.value)}
-            >
-              <option value="all">Todo el centro</option>
-              {scheduleTeachers.map((teacher) => (
-                <option key={teacher.id} value={teacher.id}>
-                  {teacher.name}
-                </option>
-              ))}
-            </select>
-          </label>
-        </div>
-      </div>
-      <div className="schedule-week-controls">
-        <button
-          className={`schedule-repeat-toggle ${scheduleRepeats ? 'active' : ''}`}
-          onClick={() => setScheduleRepeats((value) => !value)}
-        >
-          {scheduleRepeats ? 'Horario habitual activo' : 'Usar esta semana como horario habitual'}
-        </button>
-      </div>
       {scheduleOverlaps().length > 0 && (
         <div className="schedule-conflict-banner" role="alert">
           <strong>Hay solapes en {days.find((day) => day.id === scheduleDay)?.label}.</strong>{' '}
@@ -1350,6 +1337,15 @@ function ManagerView({
               <option value="all">Todos los profesores</option>
               {scheduleTeachers.map((teacher) => <option key={teacher.id} value={teacher.id}>{teacher.name}</option>)}
             </select>
+            <button className="schedule-add" onClick={() => setScheduleCreateOpen((open) => !open)}>
+              {scheduleCreateOpen ? 'Cerrar' : '+ Añadir bloque'}
+            </button>
+            <button
+              className={`schedule-repeat-toggle ${scheduleRepeats ? 'active' : ''}`}
+              onClick={() => setScheduleRepeats((value) => !value)}
+            >
+              {scheduleRepeats ? 'Horario habitual activo' : 'Usar esta semana como horario habitual'}
+            </button>
           </div>
         </div>
         <div className="manager-calendar" style={{ '--calendar-days': days.length } as React.CSSProperties}>
@@ -1361,6 +1357,7 @@ function ManagerView({
             const dayBlocks = scheduleBlocks.filter((block) =>
               (block.day ?? 1) === day.id && (scheduleFilter === 'all' || block.teacherId === scheduleFilter),
             )
+            const dayPlacements = layoutScheduleOverlaps(dayBlocks)
             return (
               <div className="manager-calendar-day" key={day.id}>
                 <button className="manager-calendar-day-head" onClick={() => { setScheduleDay(day.id); setActiveTab('schedule') }}>
@@ -1384,9 +1381,9 @@ function ManagerView({
                       <span>{formatTime(nowMinutes)}</span><i />
                     </div>
                   )}
-                  {dayBlocks.map((block) => {
+                  {dayPlacements.map(({ block, column, columns }) => {
                     const teacher = scheduleTeachers.find((item) => item.id === block.teacherId)
-                    return <button className={`center-schedule-block manager-calendar-block ${block.kind} ${teacher?.color ?? ''} ${scheduleDragId === block.id ? 'dragging' : ''}`} draggable key={block.id} style={{ top: `${((block.startMin - 480) / 30) * 50}px`, height: `${Math.max(34, ((block.endMin - block.startMin) / 30) * 50 - 4)}px` }} onClick={() => setScheduleSelectedId(block.id)} onDragStart={(event) => { setScheduleDragId(block.id); event.dataTransfer.setData('center-schedule-block', block.id) }} onDragEnd={() => setScheduleDragId(null)}>
+                    return <button className={`center-schedule-block manager-calendar-block ${block.kind} ${teacher?.color ?? ''} ${scheduleDragId === block.id ? 'dragging' : ''}`} draggable key={block.id} style={{ top: `${((block.startMin - 480) / 30) * 50}px`, height: `${Math.max(34, ((block.endMin - block.startMin) / 30) * 50 - 4)}px`, left: `calc(${(column * 100) / columns}% + 4px)`, width: `calc(${100 / columns}% - 8px)`, right: 'auto' }} onClick={() => setScheduleSelectedId(block.id)} onDragStart={(event) => { setScheduleDragId(block.id); event.dataTransfer.setData('center-schedule-block', block.id) }} onDragEnd={() => setScheduleDragId(null)}>
                       <strong>{block.label}</strong>
                       <small>{block.subject} · {scheduleRepeats ? 'Cada semana' : 'Solo esta semana'}</small>
                       <em>{formatTime(block.startMin)}–{formatTime(block.endMin)} · {teacher?.name}</em>
@@ -1868,6 +1865,7 @@ function ManagerView({
     ],
     teachers: ['Profesores', 'Asigna horarios y consulta el detalle de cada persona.'],
     incidents: ['Revisiones', 'Valida las diferencias entre lo planificado y lo registrado.'],
+    settings: ['Configuración', 'Prepara el escenario de la demo y las reglas del centro.'],
   }[activeTab]
 
   return (
@@ -1964,6 +1962,33 @@ function ManagerView({
           </aside>
         </div>
       )}
+      {activeTab === 'settings' && (
+        <div className="manager-tab-content">
+          <section className="settings-card">
+            <div className="section-heading">
+              <div>
+                <h2>Escenario de demostración</h2>
+                <p className="calendar-hint">
+                  Deja la demo lista para repetir el recorrido de fichaje y revisión desde cero.
+                </p>
+              </div>
+              <ShieldCheck size={22} />
+            </div>
+            <div className="settings-row">
+              <div>
+                <strong>Reiniciar escenario</strong>
+                <p>Restablece fichajes, correcciones y aprobaciones locales.</p>
+              </div>
+              <button className="schedule-add" onClick={onResetDemo}>
+                Reiniciar escenario de demo
+              </button>
+            </div>
+            <p className="settings-note">
+              Es una demo local: no borra datos de ningún centro real ni envía información.
+            </p>
+          </section>
+        </div>
+      )}
     </div>
   )
 }
@@ -2008,6 +2033,37 @@ function layoutOverlaps(items: Block[]) {
         other.id !== block.id && other.startMin < block.endMin && other.endMin > block.startMin,
     ).length
     placements.set(block.id, { column, columns: overlapping + 1 })
+  })
+  return items.map((block) => ({
+    block,
+    ...(placements.get(block.id) ?? { column: 0, columns: 1 }),
+  }))
+}
+
+function layoutScheduleOverlaps(items: CenterScheduleBlock[]) {
+  const sorted = [...items].sort((a, b) => a.startMin - b.startMin || a.endMin - b.endMin)
+  const columns: CenterScheduleBlock[][] = []
+  const placements = new Map<string, { column: number; columns: number }>()
+  sorted.forEach((block) => {
+    let column = columns.findIndex((placed) =>
+      placed.every((other) => other.endMin <= block.startMin || other.startMin >= block.endMin),
+    )
+    if (column === -1) {
+      column = columns.length
+      columns.push([])
+    }
+    ;(columns[column] ??= []).push(block)
+    const overlapping = sorted.filter(
+      (other) =>
+        other.id !== block.id && other.startMin < block.endMin && other.endMin > block.startMin,
+    )
+    placements.set(block.id, {
+      column,
+      columns: Math.max(1, column + 1, ...overlapping.map((other) => {
+        const placement = placements.get(other.id)
+        return placement ? placement.columns : 1
+      })),
+    })
   })
   return items.map((block) => ({
     block,
