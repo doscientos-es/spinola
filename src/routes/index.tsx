@@ -1067,6 +1067,7 @@ function ManagerView({
     loadLocal('spinola-demo-center-schedule', centerSchedule),
   )
   const [scheduleFilter, setScheduleFilter] = useState('all')
+  const [scheduleClassFilter, setScheduleClassFilter] = useState('all')
   const [scheduleDay, setScheduleDay] = useState(1)
   const [overviewWeekOffset, setOverviewWeekOffset] = useState(0)
   const [scheduleRepeats, setScheduleRepeats] = useState(
@@ -1112,6 +1113,11 @@ function ManagerView({
     (teacher) => scheduleFilter === 'all' || teacher.id === scheduleFilter,
   )
   const scheduleHours = Array.from({ length: 27 }, (_, index) => 480 + index * 30)
+  function classForScheduleBlock(block: CenterScheduleBlock) {
+    const parts = block.label.split('·')
+    return parts.length > 1 ? parts.at(-1)!.trim() : 'Sin clase asignada'
+  }
+  const scheduleClasses = Array.from(new Set(scheduleBlocks.map(classForScheduleBlock))).sort()
   function scheduledHoursFor(teacherId: string) {
     const minutes = scheduleBlocks
       .filter((block) => block.teacherId === teacherId && (block.day ?? 1) === scheduleDay)
@@ -1337,6 +1343,10 @@ function ManagerView({
               <option value="all">Todos los profesores</option>
               {scheduleTeachers.map((teacher) => <option key={teacher.id} value={teacher.id}>{teacher.name}</option>)}
             </select>
+            <select value={scheduleClassFilter} onChange={(event) => setScheduleClassFilter(event.target.value)} aria-label="Filtrar clases">
+              <option value="all">Todas las clases</option>
+              {scheduleClasses.map((className) => <option key={className} value={className}>{className}</option>)}
+            </select>
             <button className="schedule-add" onClick={() => setScheduleCreateOpen((open) => !open)}>
               {scheduleCreateOpen ? 'Cerrar' : '+ Añadir bloque'}
             </button>
@@ -1355,7 +1365,9 @@ function ManagerView({
           </div>
           {days.map((day) => {
             const dayBlocks = scheduleBlocks.filter((block) =>
-              (block.day ?? 1) === day.id && (scheduleFilter === 'all' || block.teacherId === scheduleFilter),
+              (block.day ?? 1) === day.id &&
+              (scheduleFilter === 'all' || block.teacherId === scheduleFilter) &&
+              (scheduleClassFilter === 'all' || classForScheduleBlock(block) === scheduleClassFilter),
             )
             const dayPlacements = layoutScheduleOverlaps(dayBlocks)
             return (
