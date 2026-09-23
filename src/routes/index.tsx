@@ -999,6 +999,7 @@ function ManagerView({
   )
   const [scheduleFilter, setScheduleFilter] = useState('all')
   const [scheduleDay, setScheduleDay] = useState(1)
+  const [overviewWeekOffset, setOverviewWeekOffset] = useState(0)
   const [scheduleRepeats, setScheduleRepeats] = useState(
     () => localStorage.getItem('spinola-demo-schedule-repeat') !== 'false',
   )
@@ -1285,41 +1286,51 @@ function ManagerView({
           {scheduleOverlaps().map((overlap) => `${overlap.teacher}: ${overlap.first} / ${overlap.second}`).join(' · ')}
         </div>
       )}
-      <section className="manager-week-overview" aria-label="Resumen semanal del equipo docente">
-        <div className="section-heading">
+      <section className="manager-week-overview" aria-label="Calendario semanal del equipo docente">
+        <div className="section-heading manager-calendar-heading">
           <div>
-            <h2>Semana del equipo</h2>
-            <p className="calendar-hint">Todos los profesores y sus bloques previstos</p>
+            <h2>Calendario semanal</h2>
+            <p className="calendar-hint">Todos los profesores y sus bloques de un vistazo</p>
           </div>
-          <span className="count-pill">{scheduleTeachers.length} profesores</span>
+          <div className="manager-calendar-actions">
+            <button onClick={() => setOverviewWeekOffset((value) => value - 1)} aria-label="Semana anterior">‹</button>
+            <button onClick={() => setOverviewWeekOffset(0)}>Esta semana</button>
+            <button onClick={() => setOverviewWeekOffset((value) => value + 1)} aria-label="Semana siguiente">›</button>
+            <select value={scheduleFilter} onChange={(event) => setScheduleFilter(event.target.value)} aria-label="Filtrar profesores">
+              <option value="all">Todos los profesores</option>
+              {scheduleTeachers.map((teacher) => <option key={teacher.id} value={teacher.id}>{teacher.name}</option>)}
+            </select>
+          </div>
         </div>
-        <div className="manager-week-table">
-          <div className="manager-week-row manager-week-header">
-            <strong>Profesor</strong>
-            {days.map((day) => <strong key={day.id}>{day.label.slice(0, 3)}</strong>)}
+        <div className="manager-calendar-week-label">
+          Semana {overviewWeekOffset === 0 ? 'actual' : overviewWeekOffset > 0 ? `+${overviewWeekOffset}` : overviewWeekOffset} · 21–25 sep. 2026
+        </div>
+        <div className="manager-calendar" style={{ '--calendar-days': days.length } as React.CSSProperties}>
+          <div className="manager-calendar-times">
+            <span />
+            {scheduleHours.map((hour) => <span key={hour}>{formatTime(hour)}</span>)}
           </div>
-          {scheduleTeachers.map((teacher) => (
-            <div className="manager-week-row" key={teacher.id}>
-              <strong>{teacher.name}</strong>
-              {days.map((day) => {
-                const blocks = scheduleBlocks.filter(
-                  (block) => block.teacherId === teacher.id && (block.day ?? 1) === day.id,
-                )
-                return (
-                  <button
-                    className="manager-week-cell"
-                    key={day.id}
-                    onClick={() => { setScheduleDay(day.id); setScheduleFilter(teacher.id) }}
-                    aria-label={`${teacher.name}, ${day.label}, ${blocks.length} bloques`}
-                  >
-                    {blocks.length ? blocks.map((block) => (
-                      <span className={`week-mini-block ${block.kind}`} key={block.id}>{block.label}</span>
-                    )) : <em>Libre</em>}
-                  </button>
-                )
-              })}
-            </div>
-          ))}
+          {days.map((day) => {
+            const dayBlocks = scheduleBlocks.filter((block) =>
+              (block.day ?? 1) === day.id && (scheduleFilter === 'all' || block.teacherId === scheduleFilter),
+            )
+            return (
+              <div className="manager-calendar-day" key={day.id}>
+                <button className="manager-calendar-day-head" onClick={() => { setScheduleDay(day.id); setActiveTab('schedule') }}>
+                  <strong>{day.label}</strong><small>{day.id === 2 ? 'Hoy' : ' '}</small>
+                </button>
+                <div className="manager-calendar-day-body">
+                  {scheduleHours.map((hour) => <span className="manager-calendar-line" key={hour} style={{ top: `${((hour - 480) / 30) * 50}px` }} />)}
+                  {dayBlocks.map((block) => {
+                    const teacher = scheduleTeachers.find((item) => item.id === block.teacherId)
+                    return <button className={`manager-calendar-block ${block.kind} ${teacher?.color ?? ''}`} key={block.id} style={{ top: `${((block.startMin - 480) / 30) * 50}px`, height: `${Math.max(34, ((block.endMin - block.startMin) / 30) * 50 - 4)}px` }} onClick={() => setScheduleSelectedId(block.id)}>
+                      <strong>{block.label}</strong><small>{teacher?.name} · {formatTime(block.startMin)}</small>
+                    </button>
+                  })}
+                </div>
+              </div>
+            )
+          })}
         </div>
       </section>
       <Dialog open={scheduleCreateOpen} onOpenChange={setScheduleCreateOpen}>
