@@ -522,10 +522,10 @@ export function SpinolaHome({
             ].map(([day, activities], index) => (
               <button
                 className={`teacher-week-day ${index === 1 ? 'today' : ''}`}
-                key={day}
+                key={String(day)}
                 onClick={() => setShowGuide(false)}
               >
-                <strong>{day}</strong>
+                <strong>{String(day)}</strong>
                 <span>{index === 1 ? 'Hoy' : `${2 + index} bloques`}</span>
                 {(activities as string[]).map((activity) => (
                   <small key={activity}>{activity}</small>
