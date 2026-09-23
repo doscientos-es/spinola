@@ -437,6 +437,18 @@ body {
 .teacher-week-day span { color: #64748b; font-size: 0.72rem; }
 .teacher-week-day small { color: #334155; font-size: 0.72rem; line-height: 1.25; }
 
+.manager-week-overview { margin: 1rem 0 1.25rem; border: 1px solid var(--border-subtle, #e2e8f0); border-radius: 1.25rem; background: #fff; padding: 1.1rem; }
+.manager-week-table { overflow-x: auto; }
+.manager-week-row { display: grid; min-width: 760px; grid-template-columns: 170px repeat(5, minmax(130px, 1fr)); border-top: 1px solid #eef1f5; }
+.manager-week-row > strong, .manager-week-cell { padding: 0.65rem; }
+.manager-week-header { border-top: 0; color: #64748b; font-size: 0.72rem; text-transform: uppercase; }
+.manager-week-cell { display: flex; min-height: 4.2rem; flex-direction: column; align-items: stretch; gap: 0.25rem; border: 0; border-left: 1px solid #eef1f5; background: #fff; text-align: left; cursor: pointer; }
+.manager-week-cell:hover { background: #f8fafc; }
+.manager-week-cell em { color: #94a3b8; font-size: 0.72rem; }
+.week-mini-block { display: block; overflow: hidden; border-radius: 0.35rem; background: #e8f0ff; color: #1d4ed8; padding: 0.25rem 0.35rem; font-size: 0.68rem; line-height: 1.2; text-overflow: ellipsis; white-space: nowrap; }
+.week-mini-block.tutoria, .week-mini-block.reunion, .week-mini-block.preparacion, .week-mini-block.complementaria { background: #f1eafe; color: #6d28d9; }
+.week-mini-block.guardia { background: #fff1db; color: #b45309; }
+
 @media (max-width: 800px) {
   .teacher-week-grid { grid-template-columns: repeat(5, minmax(10rem, 1fr)); overflow-x: auto; }
 }

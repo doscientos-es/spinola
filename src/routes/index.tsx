@@ -1285,6 +1285,43 @@ function ManagerView({
           {scheduleOverlaps().map((overlap) => `${overlap.teacher}: ${overlap.first} / ${overlap.second}`).join(' · ')}
         </div>
       )}
+      <section className="manager-week-overview" aria-label="Resumen semanal del equipo docente">
+        <div className="section-heading">
+          <div>
+            <h2>Semana del equipo</h2>
+            <p className="calendar-hint">Todos los profesores y sus bloques previstos</p>
+          </div>
+          <span className="count-pill">{scheduleTeachers.length} profesores</span>
+        </div>
+        <div className="manager-week-table">
+          <div className="manager-week-row manager-week-header">
+            <strong>Profesor</strong>
+            {days.map((day) => <strong key={day.id}>{day.label.slice(0, 3)}</strong>)}
+          </div>
+          {scheduleTeachers.map((teacher) => (
+            <div className="manager-week-row" key={teacher.id}>
+              <strong>{teacher.name}</strong>
+              {days.map((day) => {
+                const blocks = scheduleBlocks.filter(
+                  (block) => block.teacherId === teacher.id && (block.day ?? 1) === day.id,
+                )
+                return (
+                  <button
+                    className="manager-week-cell"
+                    key={day.id}
+                    onClick={() => { setScheduleDay(day.id); setScheduleFilter(teacher.id) }}
+                    aria-label={`${teacher.name}, ${day.label}, ${blocks.length} bloques`}
+                  >
+                    {blocks.length ? blocks.map((block) => (
+                      <span className={`week-mini-block ${block.kind}`} key={block.id}>{block.label}</span>
+                    )) : <em>Libre</em>}
+                  </button>
+                )
+              })}
+            </div>
+          ))}
+        </div>
+      </section>
       <Dialog open={scheduleCreateOpen} onOpenChange={setScheduleCreateOpen}>
         <DialogContent className="schedule-dialog" showCloseButton>
           <DialogHeader>
