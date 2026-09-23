@@ -15,6 +15,15 @@ type Block = {
   startMin: number
   endMin: number
 }
+type CenterScheduleBlock = {
+  id: string
+  teacherId: string
+  label: string
+  subject: string
+  kind: 'lectiva' | 'complementaria'
+  startMin: number
+  endMin: number
+}
 type DemoUser = {
   id: string
   name: string
@@ -79,6 +88,53 @@ const blocks: Block[] = [
     note: 'Consume bolsa complementaria al aprobarse',
     startMin: 720,
     endMin: 780,
+  },
+]
+const centerSchedule: CenterScheduleBlock[] = [
+  {
+    id: 'schedule-lucia-math',
+    teacherId: 'lucia',
+    label: 'Matemáticas · 3º ESO',
+    subject: 'Aula 2.1',
+    kind: 'lectiva',
+    startMin: 510,
+    endMin: 570,
+  },
+  {
+    id: 'schedule-lucia-tutoria',
+    teacherId: 'lucia',
+    label: 'Tutoría · 2º B',
+    subject: 'Aula 1.3',
+    kind: 'complementaria',
+    startMin: 600,
+    endMin: 660,
+  },
+  {
+    id: 'schedule-diego-castellano',
+    teacherId: 'diego',
+    label: 'Lengua Castellana · 1º ESO',
+    subject: 'Aula 1.2',
+    kind: 'lectiva',
+    startMin: 540,
+    endMin: 600,
+  },
+  {
+    id: 'schedule-diego-department',
+    teacherId: 'diego',
+    label: 'Reunión de departamento',
+    subject: 'Sala de profesores',
+    kind: 'complementaria',
+    startMin: 690,
+    endMin: 750,
+  },
+  {
+    id: 'schedule-ines-english',
+    teacherId: 'ines',
+    label: 'Inglés · Bachillerato',
+    subject: 'Aula 2.3',
+    kind: 'lectiva',
+    startMin: 480,
+    endMin: 540,
   },
 ]
 
@@ -863,7 +919,9 @@ function ManagerView({
   approved: boolean
   onApprove: () => void
 }) {
-  const [activeTab, setActiveTab] = useState<'overview' | 'team' | 'incidents'>('overview')
+  const [activeTab, setActiveTab] = useState<
+    'schedule' | 'overview' | 'teachers' | 'templates' | 'incidents'
+  >('schedule')
   const [scenario, setScenario] = useState('pending')
   const [templateActive, setTemplateActive] = useState(
     () => localStorage.getItem('spinola-demo-template') !== 'false',
@@ -871,6 +929,27 @@ function ManagerView({
   const [selectedTeacher, setSelectedTeacher] = useState('lucia')
   const [teacherTemplate, setTeacherTemplate] = useState('plantilla-3eso')
   const [teacherSaved, setTeacherSaved] = useState(false)
+  const [newTemplateOpen, setNewTemplateOpen] = useState(false)
+  const [newTemplateName, setNewTemplateName] = useState('')
+  const [newTemplateCreated, setNewTemplateCreated] = useState(false)
+  const [createdTemplateName, setCreatedTemplateName] = useState('')
+  const [scheduleBlocks, setScheduleBlocks] = useState<CenterScheduleBlock[]>(() =>
+    loadLocal('spinola-demo-center-schedule', centerSchedule),
+  )
+  const [scheduleFilter, setScheduleFilter] = useState('all')
+  const [scheduleMessage, setScheduleMessage] = useState(
+    'Arrastra cualquier bloque para cambiarlo de hora o de profesor.',
+  )
+  const [scheduleSelectedId, setScheduleSelectedId] = useState<string | null>(null)
+  const [scheduleDragId, setScheduleDragId] = useState<string | null>(null)
+  const [scheduleHistory, setScheduleHistory] = useState<CenterScheduleBlock[] | null>(null)
+  const [scheduleCreateOpen, setScheduleCreateOpen] = useState(false)
+  const [scheduleCreateLabel, setScheduleCreateLabel] = useState('')
+  const [scheduleCreateTeacher, setScheduleCreateTeacher] = useState('lucia')
+  const [scheduleCreateStart, setScheduleCreateStart] = useState(480)
+  const [scheduleCreateDuration, setScheduleCreateDuration] = useState(60)
+  const [scheduleCreateKind, setScheduleCreateKind] =
+    useState<CenterScheduleBlock['kind']>('lectiva')
   const teachers = [
     { id: 'lucia', name: 'Lucía Martín', detail: '3º ESO · 18 h lectivas', initials: 'LM' },
     { id: 'diego', name: 'Diego Ruiz', detail: '2º ESO · 16 h lectivas', initials: 'DR' },
@@ -879,8 +958,69 @@ function ManagerView({
   useEffect(() => {
     localStorage.setItem('spinola-demo-template', String(templateActive))
   }, [templateActive])
+  useEffect(() => {
+    localStorage.setItem('spinola-demo-center-schedule', JSON.stringify(scheduleBlocks))
+  }, [scheduleBlocks])
   const pending = scenario !== 'empty' && !approved
   const selectedTeacherData = teachers.find((teacher) => teacher.id === selectedTeacher)
+  const scheduleTeachers = teachers.map((teacher) => ({
+    ...teacher,
+    color: teacher.id === 'lucia' ? 'green' : teacher.id === 'diego' ? 'blue' : 'orange',
+  }))
+  const visibleScheduleTeachers = scheduleTeachers.filter(
+    (teacher) => scheduleFilter === 'all' || teacher.id === scheduleFilter,
+  )
+  const scheduleHours = Array.from({ length: 15 }, (_, index) => 480 + index * 30)
+  function moveCenterScheduleBlock(
+    event: DragEvent<HTMLDivElement>,
+    teacherId: string,
+    minute: number,
+  ) {
+    const blockId = event.dataTransfer.getData('center-schedule-block')
+    const dragged = scheduleBlocks.find((block) => block.id === blockId)
+    if (!dragged) return
+    const duration = dragged.endMin - dragged.startMin
+    const startMin = Math.max(480, Math.min(900 - duration, Math.round(minute / 30) * 30))
+    setScheduleHistory(scheduleBlocks)
+    setScheduleBlocks((current) =>
+      current.map((block) =>
+        block.id === blockId
+          ? { ...block, teacherId, startMin, endMin: startMin + duration }
+          : block,
+      ),
+    )
+    const teacher = scheduleTeachers.find((item) => item.id === teacherId)
+    setScheduleMessage(`${dragged.label} · ${formatTime(startMin)} · ${teacher?.name ?? ''}`)
+    setScheduleSelectedId(blockId)
+    setScheduleDragId(null)
+  }
+  function addCenterScheduleBlock() {
+    const label = scheduleCreateLabel.trim()
+    if (!label) return
+    const endMin = Math.min(900, scheduleCreateStart + scheduleCreateDuration)
+    const newBlock: CenterScheduleBlock = {
+      id: `schedule-${Date.now()}`,
+      teacherId: scheduleCreateTeacher,
+      label,
+      subject: 'Aula por asignar',
+      kind: scheduleCreateKind,
+      startMin: scheduleCreateStart,
+      endMin,
+    }
+    setScheduleHistory(scheduleBlocks)
+    setScheduleBlocks((current) => [...current, newBlock])
+    setScheduleSelectedId(newBlock.id)
+    setScheduleCreateLabel('')
+    setScheduleCreateOpen(false)
+    setScheduleMessage(`${label} añadido al horario.`)
+  }
+  function undoScheduleChange() {
+    if (!scheduleHistory) return
+    setScheduleBlocks(scheduleHistory)
+    setScheduleHistory(null)
+    setScheduleSelectedId(null)
+    setScheduleMessage('Cambio deshecho.')
+  }
   const livePeople = [
     ['Lucía Martín', 'En clase · Matemáticas', '08:24', 'active'],
     ['Diego Ruiz', 'En pausa', '02:18 fichado', 'pause'],
@@ -955,16 +1095,247 @@ function ManagerView({
     </section>
   )
 
+  const centerSchedulePanel = (
+    <section className="center-schedule-panel">
+      <div className="schedule-panel-head">
+        <div>
+          <p className="eyebrow">Planificación del centro</p>
+          <h2>Horario general</h2>
+          <p className="calendar-hint">
+            Cada columna es un profesor. Mueve un bloque para cambiar su hora o asignarlo a otra
+            persona.
+          </p>
+        </div>
+        <div className="schedule-tools">
+          <button className="schedule-add" onClick={() => setScheduleCreateOpen((open) => !open)}>
+            {scheduleCreateOpen ? 'Cerrar' : '+ Añadir bloque'}
+          </button>
+          <label className="schedule-filter">
+            Ver horario de
+            <select
+              value={scheduleFilter}
+              onChange={(event) => setScheduleFilter(event.target.value)}
+            >
+              <option value="all">Todo el centro</option>
+              {scheduleTeachers.map((teacher) => (
+                <option key={teacher.id} value={teacher.id}>
+                  {teacher.name}
+                </option>
+              ))}
+            </select>
+          </label>
+        </div>
+      </div>
+      {scheduleCreateOpen && (
+        <div className="schedule-create">
+          <label>
+            Actividad
+            <input
+              value={scheduleCreateLabel}
+              placeholder="Ej. Lengua Castellana · 1º ESO"
+              onChange={(event) => setScheduleCreateLabel(event.target.value)}
+            />
+          </label>
+          <label>
+            Profesor
+            <select
+              value={scheduleCreateTeacher}
+              onChange={(event) => setScheduleCreateTeacher(event.target.value)}
+            >
+              {scheduleTeachers.map((teacher) => (
+                <option key={teacher.id} value={teacher.id}>
+                  {teacher.name}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label>
+            Inicio
+            <select
+              value={scheduleCreateStart}
+              onChange={(event) => setScheduleCreateStart(Number(event.target.value))}
+            >
+              {scheduleHours.slice(0, -1).map((minute) => (
+                <option key={minute} value={minute}>
+                  {formatTime(minute)}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label>
+            Duración
+            <select
+              value={scheduleCreateDuration}
+              onChange={(event) => setScheduleCreateDuration(Number(event.target.value))}
+            >
+              {[30, 60, 90, 120].map((duration) => (
+                <option key={duration} value={duration}>
+                  {duration} min
+                </option>
+              ))}
+            </select>
+          </label>
+          <label>
+            Tipo
+            <select
+              value={scheduleCreateKind}
+              onChange={(event) =>
+                setScheduleCreateKind(event.target.value as CenterScheduleBlock['kind'])
+              }
+            >
+              <option value="lectiva">Clase lectiva</option>
+              <option value="complementaria">Complementaria</option>
+            </select>
+          </label>
+          <button
+            className="schedule-create-submit"
+            disabled={!scheduleCreateLabel.trim()}
+            onClick={addCenterScheduleBlock}
+          >
+            Añadir al horario
+          </button>
+        </div>
+      )}
+      <div className="schedule-tip">
+        <span className="drag-hint">↕</span>
+        <span>{scheduleMessage}</span>
+        {scheduleHistory && <button onClick={undoScheduleChange}>Deshacer</button>}
+        {scheduleFilter !== 'all' && (
+          <button onClick={() => setScheduleFilter('all')}>Ver todo</button>
+        )}
+      </div>
+      {scheduleSelectedId &&
+        (() => {
+          const selectedBlock = scheduleBlocks.find((block) => block.id === scheduleSelectedId)
+          const selectedTeacher = scheduleTeachers.find(
+            (teacher) => teacher.id === selectedBlock?.teacherId,
+          )
+          if (!selectedBlock || !selectedTeacher) return null
+          return (
+            <div className="schedule-selection">
+              <div>
+                <span>Bloque seleccionado</span>
+                <strong>{selectedBlock.label}</strong>
+                <small>
+                  {selectedTeacher.name} · {formatTime(selectedBlock.startMin)}–
+                  {formatTime(selectedBlock.endMin)} · {selectedBlock.subject}
+                </small>
+              </div>
+              <button onClick={() => setScheduleFilter(selectedTeacher.id)}>
+                Ver horario de {selectedTeacher.name.split(' ')[0]}
+              </button>
+              <button
+                className="schedule-delete"
+                onClick={() => {
+                  setScheduleHistory(scheduleBlocks)
+                  setScheduleBlocks((current) =>
+                    current.filter((block) => block.id !== selectedBlock.id),
+                  )
+                  setScheduleSelectedId(null)
+                  setScheduleMessage(`${selectedBlock.label} eliminado.`)
+                }}
+              >
+                Eliminar
+              </button>
+            </div>
+          )
+        })()}
+      <div className="center-schedule" aria-label="Horario general del centro">
+        <div
+          className="center-schedule-head"
+          style={{
+            gridTemplateColumns: `64px repeat(${visibleScheduleTeachers.length}, minmax(180px, 1fr))`,
+          }}
+        >
+          <span>Hora</span>
+          {visibleScheduleTeachers.map((teacher) => (
+            <div key={teacher.id} className="schedule-teacher-head">
+              <span className={`schedule-avatar ${teacher.color}`}>{teacher.initials}</span>
+              <span>
+                <strong>{teacher.name}</strong>
+                <small>{teacher.detail.split(' · ')[0]}</small>
+              </span>
+            </div>
+          ))}
+        </div>
+        <div
+          className="center-schedule-body"
+          style={{
+            gridTemplateColumns: `64px repeat(${visibleScheduleTeachers.length}, minmax(180px, 1fr))`,
+          }}
+        >
+          <div className="schedule-time-column">
+            {scheduleHours.map((minute) => (
+              <span key={minute} style={{ top: `${((minute - 480) / 30) * 50}px` }}>
+                {formatTime(minute)}
+              </span>
+            ))}
+          </div>
+          {visibleScheduleTeachers.map((teacher) => (
+            <div
+              className="center-schedule-column"
+              key={teacher.id}
+              onDragOver={(event) => event.preventDefault()}
+              onDrop={(event) => moveCenterScheduleBlock(event, teacher.id, 480)}
+            >
+              {Array.from({ length: 14 }, (_, index) => {
+                const minute = 480 + index * 30
+                return (
+                  <div
+                    className="schedule-slot"
+                    key={minute}
+                    style={{ top: `${index * 50}px` }}
+                    onDragOver={(event) => event.preventDefault()}
+                    onDrop={(event) => {
+                      event.stopPropagation()
+                      moveCenterScheduleBlock(event, teacher.id, minute)
+                    }}
+                  />
+                )
+              })}
+              {scheduleBlocks
+                .filter((block) => block.teacherId === teacher.id)
+                .map((block) => (
+                  <button
+                    className={`center-schedule-block ${block.kind} ${scheduleDragId === block.id ? 'dragging' : ''}`}
+                    draggable
+                    key={block.id}
+                    onClick={() => setScheduleSelectedId(block.id)}
+                    onDragEnd={() => setScheduleDragId(null)}
+                    onDragStart={(event) => {
+                      setScheduleDragId(block.id)
+                      event.dataTransfer.setData('center-schedule-block', block.id)
+                    }}
+                    style={{
+                      top: `${((block.startMin - 480) / 30) * 50 + 3}px`,
+                      height: `${((block.endMin - block.startMin) / 30) * 50 - 6}px`,
+                    }}
+                    type="button"
+                  >
+                    <strong>{block.label}</strong>
+                    <small>{block.subject}</small>
+                    <em>
+                      {formatTime(block.startMin)}–{formatTime(block.endMin)}
+                    </em>
+                  </button>
+                ))}
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
+  )
+
   const staffPanel = (
     <section className="staff-panel">
       <div className="staff-panel-head">
         <div>
-          <p className="eyebrow">Configuración del centro</p>
-          <h2>Equipo y horarios</h2>
-          <p className="calendar-hint">Selecciona una persona para revisar su asignación.</p>
+          <p className="eyebrow">Personas del centro</p>
+          <h2>Profesores</h2>
+          <p className="calendar-hint">Asigna una plantilla y revisa sólo las excepciones.</p>
         </div>
-        <button className="template-action" onClick={() => setTemplateActive(true)}>
-          + Nueva plantilla
+        <button className="template-action" onClick={() => setActiveTab('templates')}>
+          Gestionar plantillas
         </button>
       </div>
       <div className="staff-layout">
@@ -1017,6 +1388,98 @@ function ManagerView({
     </section>
   )
 
+  const templatesPanel = (
+    <section className="templates-panel">
+      <div className="staff-panel-head">
+        <div>
+          <p className="eyebrow">Configuración del centro</p>
+          <h2>Plantillas de horario</h2>
+          <p className="calendar-hint">
+            Crea el horario base una vez y asígnalo a todos los profesores que lo compartan.
+          </p>
+        </div>
+        <button className="template-action" onClick={() => setNewTemplateOpen((open) => !open)}>
+          {newTemplateOpen ? 'Cerrar' : '+ Nueva plantilla'}
+        </button>
+      </div>
+      {newTemplateOpen && (
+        <div className="template-create">
+          <label>
+            Nombre de la plantilla
+            <input
+              value={newTemplateName}
+              placeholder="Ej. 4º ESO · Mañana"
+              onChange={(event) => setNewTemplateName(event.target.value)}
+            />
+          </label>
+          <button
+            className="primary-action"
+            disabled={!newTemplateName.trim()}
+            onClick={() => {
+              setNewTemplateCreated(true)
+              setCreatedTemplateName(newTemplateName.trim())
+              setNewTemplateOpen(false)
+              setNewTemplateName('')
+            }}
+          >
+            Crear plantilla
+          </button>
+        </div>
+      )}
+      {newTemplateCreated && (
+        <div className="template-success">
+          Plantilla creada. Ya puedes asignarla desde la página de Profesores.
+        </div>
+      )}
+      <div className="template-list">
+        {createdTemplateName && (
+          <article className="template-item active">
+            <div className="template-item-icon">N</div>
+            <div>
+              <div className="template-item-title">
+                <strong>{createdTemplateName}</strong>
+                <span className="status-tag draft">Borrador</span>
+              </div>
+              <p>Sin horario definido · Sin profesores asignados</p>
+            </div>
+            <button onClick={() => setActiveTab('teachers')}>Asignar</button>
+          </article>
+        )}
+        <article className="template-item active">
+          <div className="template-item-icon">3º</div>
+          <div>
+            <div className="template-item-title">
+              <strong>3º ESO · Mañana</strong>
+              <span className="status-tag">{templateActive ? 'Activa' : 'Borrador'}</span>
+            </div>
+            <p>08:30–14:30 · 21 bloques · 2 profesores asignados</p>
+          </div>
+          <button onClick={() => setActiveTab('teachers')}>Asignar</button>
+        </article>
+        <article className="template-item">
+          <div className="template-item-icon muted">T</div>
+          <div>
+            <div className="template-item-title">
+              <strong>Turno de tarde</strong>
+              <span className="status-tag draft">Borrador</span>
+            </div>
+            <p>16:00–21:00 · 15 bloques · Sin profesores asignados</p>
+          </div>
+          <button onClick={() => setTemplateActive(true)}>Activar</button>
+        </article>
+      </div>
+      <div className="template-guide">
+        <ShieldCheck size={17} />
+        <div>
+          <strong>La forma más sencilla</strong>
+          <p>
+            Plantilla para lo común; edición individual sólo cuando un profesor tenga una excepción.
+          </p>
+        </div>
+      </div>
+    </section>
+  )
+
   const activityList = (
     <div className="activity-list">
       <div>
@@ -1040,16 +1503,24 @@ function ManagerView({
     </div>
   )
 
+  const pageCopy = {
+    schedule: ['Horario general', 'Organiza todo el centro desde un único calendario.'],
+    overview: [
+      'Resumen del centro',
+      'Revisa lo importante de hoy y actúa sólo sobre las excepciones.',
+    ],
+    teachers: ['Profesores', 'Asigna horarios y consulta el detalle de cada persona.'],
+    templates: ['Plantillas', 'Crea horarios base para reutilizarlos cuando encajen.'],
+    incidents: ['Revisiones', 'Valida las diferencias entre lo planificado y lo registrado.'],
+  }[activeTab]
+
   return (
     <>
       <div className="hero-row">
         <div>
           <p className="eyebrow">{user.role === 'sede' ? 'Vista de sede' : 'Vista de dirección'}</p>
-          <h1>Resumen del centro</h1>
-          <p className="hero-subtitle">
-            Lo importante de hoy, en un solo lugar. Revisa sólo las excepciones y deja que el equipo
-            siga su jornada.
-          </p>
+          <h1>{pageCopy[0]}</h1>
+          <p className="hero-subtitle">{pageCopy[1]}</p>
         </div>
         <div className="date-chip">
           <strong>{user.centre}</strong>
@@ -1059,8 +1530,10 @@ function ManagerView({
       </div>
       <nav className="manager-tabs" aria-label="Secciones de dirección">
         {[
+          ['schedule', 'Horario general'],
           ['overview', 'Resumen'],
-          ['team', 'Equipo y horarios'],
+          ['teachers', 'Profesores'],
+          ['templates', 'Plantillas'],
           ['incidents', 'Revisiones'],
         ].map(([id, label]) => (
           <button
@@ -1068,13 +1541,16 @@ function ManagerView({
             className={activeTab === id ? 'active' : ''}
             aria-selected={activeTab === id}
             role="tab"
-            onClick={() => setActiveTab(id as 'overview' | 'team' | 'incidents')}
+            onClick={() =>
+              setActiveTab(id as 'schedule' | 'overview' | 'teachers' | 'templates' | 'incidents')
+            }
           >
             {label}
             {id === 'incidents' && pending && <span>1</span>}
           </button>
         ))}
       </nav>
+      {activeTab === 'schedule' && <div className="manager-tab-content">{centerSchedulePanel}</div>}
       {activeTab === 'overview' && (
         <div className="manager-overview">
           <div className="manager-kpis">
@@ -1083,14 +1559,14 @@ function ManagerView({
               <strong>{pending ? '1' : '0'}</strong>
               <small>{pending ? 'Requiere tu aprobación' : 'Todo al día'}</small>
             </button>
-            <button className="manager-kpi" onClick={() => setActiveTab('team')}>
+            <button className="manager-kpi" onClick={() => setActiveTab('teachers')}>
               <span>Equipo fichado hoy</span>
               <strong>
                 86 <small>/ 94</small>
               </strong>
               <small>91% del equipo del centro</small>
             </button>
-            <button className="manager-kpi" onClick={() => setActiveTab('team')}>
+            <button className="manager-kpi" onClick={() => setActiveTab('templates')}>
               <span>Plantilla del centro</span>
               <strong>{templateActive ? 'Activa' : 'Borrador'}</strong>
               <small>3º ESO · curso 2026/27</small>
@@ -1117,7 +1593,7 @@ function ManagerView({
                   <strong>Plantilla · 3º ESO</strong>
                   <small>Santa Rafaela · curso 2026/27</small>
                 </div>
-                <button onClick={() => setActiveTab('team')}>Gestionar horarios</button>
+                <button onClick={() => setActiveTab('templates')}>Gestionar plantillas</button>
                 <p>
                   El equipo recibe automáticamente sus bloques y confirma la jornada al terminar.
                 </p>
@@ -1136,12 +1612,13 @@ function ManagerView({
           </div>
         </div>
       )}
-      {activeTab === 'team' && (
+      {activeTab === 'teachers' && (
         <div className="manager-tab-content">
           {staffPanel}
           {livePanel}
         </div>
       )}
+      {activeTab === 'templates' && <div className="manager-tab-content">{templatesPanel}</div>}
       {activeTab === 'incidents' && (
         <div className="manager-grid manager-tab-content">
           <section className="manager-main">
