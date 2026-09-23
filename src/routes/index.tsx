@@ -1628,12 +1628,6 @@ function ManagerView({
 
   const staffPanel = (
     <section className="staff-panel">
-      <div className="staff-panel-head">
-        <div>
-          <h2>Profesores</h2>
-          <p className="calendar-hint">Carga semanal y estado de fichaje del equipo.</p>
-        </div>
-      </div>
       <div className="staff-table-wrap">
         <table className="staff-table">
           <thead>
