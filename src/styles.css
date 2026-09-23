@@ -1582,7 +1582,7 @@ h2 {
   z-index: 15;
   width: max-content;
   max-width: calc(100vw - 32px);
-  padding: 6px 6px 6px 14px;
+  padding: 6px;
   column-gap: 10px;
   row-gap: 8px;
   overflow: hidden;
@@ -1656,7 +1656,7 @@ h2 {
   border: 0;
   background: transparent;
   color: inherit;
-  padding: 2px;
+  padding: 0;
   text-align: left;
   cursor: pointer;
 }
@@ -1746,6 +1746,7 @@ h2 {
 .clock-copy strong {
   color: var(--pill-fg);
   font-size: 29px;
+  font-weight: 500;
   letter-spacing: -0.06em;
   line-height: 1;
   transition: font-size 0.42s cubic-bezier(0.22, 0.8, 0.24, 1);
@@ -1787,6 +1788,7 @@ h2 {
 }
 .clock-card:not(.expanded) .clock-copy strong {
   font-size: 17px;
+  font-weight: 500;
 }
 .clock-card:not(.expanded) .clock-chevron {
   display: none;
