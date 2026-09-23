@@ -1082,6 +1082,11 @@ function ManagerView({
     startMin: number
     endMin: number
   } | null>(null)
+  const [weeklyDropPreview, setWeeklyDropPreview] = useState<{
+    day: number
+    startMin: number
+    endMin: number
+  } | null>(null)
   const [scheduleCreateOpen, setScheduleCreateOpen] = useState(false)
   const [scheduleCreateLabel, setScheduleCreateLabel] = useState('')
   const [scheduleCreateTeacher, setScheduleCreateTeacher] = useState('lucia')
@@ -1206,6 +1211,17 @@ function ManagerView({
     )
     setScheduleSelectedId(blockId)
     setScheduleDragId(null)
+    setWeeklyDropPreview(null)
+  }
+  function previewWeeklyScheduleDrop(event: DragEvent<HTMLElement>, day: number) {
+    if (!scheduleDragId) return
+    const dragged = scheduleBlocks.find((block) => block.id === scheduleDragId)
+    if (!dragged) return
+    const rect = event.currentTarget.getBoundingClientRect()
+    const minute = 480 + ((event.clientY - rect.top) / 50) * 30
+    const duration = dragged.endMin - dragged.startMin
+    const startMin = Math.max(480, Math.min(1260 - duration, Math.round(minute / 30) * 30))
+    setWeeklyDropPreview({ day, startMin, endMin: startMin + duration })
   }
   function previewCenterScheduleDrop(teacherId: string, minute: number) {
     if (!scheduleDragId) return
@@ -1377,7 +1393,10 @@ function ManagerView({
                 </button>
                 <div
                   className="manager-calendar-day-body"
-                  onDragOver={(event) => event.preventDefault()}
+                  onDragOver={(event) => {
+                    event.preventDefault()
+                    previewWeeklyScheduleDrop(event, day.id)
+                  }}
                   onDrop={(event) => {
                     const rect = event.currentTarget.getBoundingClientRect()
                     const minute = 480 + ((event.clientY - rect.top) / 50) * 30
@@ -1393,9 +1412,20 @@ function ManagerView({
                       <span>{formatTime(nowMinutes)}</span><i />
                     </div>
                   )}
+                  {weeklyDropPreview?.day === day.id && (
+                    <div
+                      className="manager-calendar-drop-preview"
+                      style={{
+                        top: `${((weeklyDropPreview.startMin - 480) / 30) * 50 + 3}px`,
+                        height: `${((weeklyDropPreview.endMin - weeklyDropPreview.startMin) / 30) * 50 - 6}px`,
+                      }}
+                    >
+                      Soltar aquí · {formatTime(weeklyDropPreview.startMin)}–{formatTime(weeklyDropPreview.endMin)}
+                    </div>
+                  )}
                   {dayPlacements.map(({ block, column, columns }) => {
                     const teacher = scheduleTeachers.find((item) => item.id === block.teacherId)
-                    return <button className={`center-schedule-block manager-calendar-block ${block.kind} ${teacher?.color ?? ''} ${scheduleDragId === block.id ? 'dragging' : ''}`} draggable key={block.id} style={{ top: `${((block.startMin - 480) / 30) * 50}px`, height: `${Math.max(34, ((block.endMin - block.startMin) / 30) * 50 - 4)}px`, left: `calc(${(column * 100) / columns}% + 4px)`, width: `calc(${100 / columns}% - 8px)`, right: 'auto' }} onClick={() => setScheduleSelectedId(block.id)} onDragStart={(event) => { setScheduleDragId(block.id); event.dataTransfer.setData('center-schedule-block', block.id) }} onDragEnd={() => setScheduleDragId(null)}>
+                    return <button className={`center-schedule-block manager-calendar-block ${block.kind} ${teacher?.color ?? ''} ${scheduleDragId === block.id ? 'dragging' : ''}`} draggable key={block.id} style={{ top: `${((block.startMin - 480) / 30) * 50}px`, height: `${Math.max(34, ((block.endMin - block.startMin) / 30) * 50 - 4)}px`, left: `calc(${(column * 100) / columns}% + 4px)`, width: `calc(${100 / columns}% - 8px)`, right: 'auto' }} onClick={() => setScheduleSelectedId(block.id)} onDragStart={(event) => { setScheduleDragId(block.id); setWeeklyDropPreview(null); event.dataTransfer.setData('center-schedule-block', block.id) }} onDragEnd={() => { setScheduleDragId(null); setWeeklyDropPreview(null) }}>
                       <strong>{block.label}</strong>
                       <small>{block.subject} · {scheduleRepeats ? 'Cada semana' : 'Solo esta semana'}</small>
                       <em>{formatTime(block.startMin)}–{formatTime(block.endMin)} · {teacher?.name}</em>
