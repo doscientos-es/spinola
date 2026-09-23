@@ -3674,6 +3674,22 @@ body {
 .staff-actions button:hover {
   background: #f3f8f3;
 }
+.staff-add-row {
+  display: flex;
+  justify-content: flex-end;
+  padding-top: 10px;
+}
+.staff-add-button {
+  border: 1px solid #c9dfd0;
+  border-radius: 8px;
+  background: #eef7f0;
+  padding: 7px 10px;
+  color: #2d654d;
+  font-size: 10px;
+  font-weight: 650;
+  cursor: pointer;
+}
+.staff-add-button:hover { background: #e1f0e5; }
 .template-action {
   border: 1px solid #dfe5df;
   border-radius: 8px;

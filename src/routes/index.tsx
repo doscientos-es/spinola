@@ -1751,6 +1751,7 @@ function ManagerView({
               <th>Horas esta semana</th>
               <th>Estado ahora</th>
               <th>Desde</th>
+              <th aria-label="Acciones" />
             </tr>
           </thead>
           <tbody>
@@ -1783,10 +1784,17 @@ function ManagerView({
                 <td className="staff-time">
                   {teacher.id === 'ines' ? '—' : teacher.id === 'diego' ? '08:05' : '08:24'}
                 </td>
+                <td className="staff-actions">
+                  <button type="button" title={`Editar a ${teacher.name}`} aria-label={`Editar a ${teacher.name}`}>✏️</button>
+                  <button type="button" title={`Eliminar a ${teacher.name}`} aria-label={`Eliminar a ${teacher.name}`}>🗑️</button>
+                </td>
               </tr>
             ))}
           </tbody>
         </table>
+      </div>
+      <div className="staff-add-row">
+        <button type="button" className="staff-add-button">＋ Añadir profesor</button>
       </div>
     </section>
   )
