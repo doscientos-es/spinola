@@ -8,7 +8,7 @@ import {
   DropdownMenu,
   DropdownMenuItem,
 } from '@doscientos/ui'
-import { Link } from '@tanstack/react-router'
+import { Link, useLocation, useNavigate } from '@tanstack/react-router'
 import Avatar from 'boring-avatars'
 import {
   CalendarDays,
@@ -30,13 +30,35 @@ export function AppFrame({ children }: { children: ReactNode }) {
     profileFor(localStorage.getItem('spinola-demo-user')),
   )
   const [mobileOpen, setMobileOpen] = useState(false)
+  const [managerTab, setManagerTab] = useState('schedule')
+  const location = useLocation()
+  const navigate = useNavigate()
+  useEffect(() => {
+    const routeTab = {
+      '/resumen': 'overview',
+      '/horario': 'schedule',
+      '/profesores': 'teachers',
+      '/plantillas': 'templates',
+      '/revisiones': 'incidents',
+    }[location.pathname]
+    if (routeTab) setManagerTab(routeTab)
+  }, [location.pathname])
   useEffect(() => {
     const sync = () => {
       setLoggedIn(Boolean(localStorage.getItem('spinola-demo-user')))
       setProfile(profileFor(localStorage.getItem('spinola-demo-user')))
     }
     window.addEventListener('spinola-demo-login', sync)
-    return () => window.removeEventListener('spinola-demo-login', sync)
+    const onManagerTab = (event: Event) => {
+      const tab = (event as CustomEvent<string>).detail
+      if (tab) setManagerTab(tab)
+      setMobileOpen(false)
+    }
+    window.addEventListener('spinola-manager-tab', onManagerTab)
+    return () => {
+      window.removeEventListener('spinola-demo-login', sync)
+      window.removeEventListener('spinola-manager-tab', onManagerTab)
+    }
   }, [])
   if (!loggedIn) return <main className="login-shell">{children}</main>
   return (
@@ -49,37 +71,74 @@ export function AppFrame({ children }: { children: ReactNode }) {
             <img src="/brand/spinola-logo.png" alt="Fundación Spínola" className="brand-logo" />
           </Link>
         </div>
-        <p className="px-2 text-[10px] font-bold tracking-[.16em] text-[#94a098] uppercase">
-          Mi espacio
-        </p>
-        <nav aria-label="Principal" className="mt-2 space-y-0.5">
-          <Link
-            to="."
-            activeProps={{ className: 'bg-muted text-foreground' }}
-            className="nav-item text-muted-foreground hover:bg-muted block rounded-md px-3 py-2 text-sm"
-          >
-            <Clock3 className="nav-icon" /> Fichar jornada
-          </Link>
-          <SidebarItem label="Mi calendario" icon={CalendarDays} />
-          <SidebarItem label="Mis documentos" icon={FileText} />
+        <nav aria-label="Principal" className="space-y-0.5">
+          {profile.role === 'Director/a' ? (
+            <>
+              <SidebarItem
+                label="Resumen"
+                icon={Gauge}
+                active={managerTab === 'overview'}
+                onClick={() => selectManagerTab('overview')}
+              />
+              <SidebarItem
+                label="Horario general"
+                icon={CalendarDays}
+                active={managerTab === 'schedule'}
+                onClick={() => selectManagerTab('schedule')}
+              />
+            </>
+          ) : (
+            <>
+              <Link
+                to="."
+                activeProps={{ className: 'bg-muted text-foreground' }}
+                className="nav-item text-muted-foreground hover:bg-muted block rounded-md px-3 py-2 text-sm"
+              >
+                <Clock3 className="nav-icon" /> Fichar jornada
+              </Link>
+              <SidebarItem label="Mi calendario" icon={CalendarDays} />
+              <SidebarItem label="Mis documentos" icon={FileText} />
+            </>
+          )}
         </nav>
-        <p className="mt-8 px-2 text-[10px] font-bold tracking-[.16em] text-[#94a098] uppercase">
-          Centro de trabajo
-        </p>
-        <nav aria-label="Centro de trabajo" className="mt-2 space-y-0.5">
-          <SidebarItem label="Equipo y horarios" icon={UsersRound} />
-          <SidebarItem label="Ausencias" icon={CalendarDays} />
-          <SidebarItem label="Comunicaciones" icon={FileText} />
-          <SidebarItem label="Firmas pendientes" icon={FolderKanban} />
-        </nav>
-        <p className="mt-8 px-2 text-[10px] font-bold tracking-[.16em] text-[#94a098] uppercase">
-          Fundación
-        </p>
-        <nav aria-label="Fundación" className="mt-2 space-y-0.5">
-          <SidebarItem label="Vista global" icon={Gauge} />
-          <SidebarItem label="Informes" icon={FolderKanban} />
-          <SidebarItem label="Configuración" icon={Settings2} />
-        </nav>
+        {profile.role === 'Director/a' ? (
+          <nav aria-label="Dirección" className="mt-7 space-y-0.5">
+            <SidebarItem
+              label="Profesores"
+              icon={UsersRound}
+              active={managerTab === 'teachers'}
+              onClick={() => selectManagerTab('teachers')}
+            />
+            <SidebarItem
+              label="Plantillas"
+              icon={FolderKanban}
+              active={managerTab === 'templates'}
+              onClick={() => selectManagerTab('templates')}
+            />
+            <SidebarItem
+              label="Revisiones"
+              icon={FileText}
+              active={managerTab === 'incidents'}
+              onClick={() => selectManagerTab('incidents')}
+            />
+            <SidebarItem label="Informes" icon={FolderKanban} disabled />
+            <SidebarItem label="Configuración" icon={Settings2} disabled />
+          </nav>
+        ) : (
+          <>
+            <nav aria-label="Centro de trabajo" className="mt-7 space-y-0.5">
+              <SidebarItem label="Equipo y horarios" icon={UsersRound} />
+              <SidebarItem label="Ausencias" icon={CalendarDays} />
+              <SidebarItem label="Comunicaciones" icon={FileText} />
+              <SidebarItem label="Firmas pendientes" icon={FolderKanban} />
+            </nav>
+            <nav aria-label="Fundación" className="mt-7 space-y-0.5">
+              <SidebarItem label="Vista global" icon={Gauge} />
+              <SidebarItem label="Informes" icon={FolderKanban} />
+              <SidebarItem label="Configuración" icon={Settings2} />
+            </nav>
+          </>
+        )}
         <DropdownMenu
           trigger={
             <Button
@@ -134,7 +193,9 @@ export function AppFrame({ children }: { children: ReactNode }) {
           >
             <MenuIcon size={18} />
           </button>
-          <span className="text-sm font-medium">Mi jornada</span>
+          <span className="text-sm font-medium">
+            {profile.role === 'Director/a' ? 'Resumen' : 'Mi jornada'}
+          </span>
           <span className="mobile-header-spacer" />
         </AppShellHeader>
         <AppShellContent className="app-content h-[calc(100svh-2.75rem)] overflow-y-auto">
@@ -143,6 +204,19 @@ export function AppFrame({ children }: { children: ReactNode }) {
       </AppShellMain>
     </AppShell>
   )
+
+  function selectManagerTab(tab: string) {
+    setManagerTab(tab)
+    const route = {
+      overview: '/resumen',
+      schedule: '/horario',
+      teachers: '/profesores',
+      templates: '/plantillas',
+      incidents: '/revisiones',
+    }[tab]
+    if (route) void navigate({ to: route })
+    window.dispatchEvent(new CustomEvent('spinola-manager-tab', { detail: tab }))
+  }
 }
 
 function profileFor(id: string | null) {
@@ -153,11 +227,28 @@ function profileFor(id: string | null) {
   return { initials: 'LM', name: 'Lucía Martín', role: 'Docente', centre: 'Santa Rafaela' }
 }
 
-function SidebarItem({ label, icon: Icon }: { label: string; icon: typeof Clock3 }) {
+function SidebarItem({
+  label,
+  icon: Icon,
+  active,
+  disabled,
+  onClick,
+}: {
+  label: string
+  icon: typeof Clock3
+  active?: boolean
+  disabled?: boolean
+  onClick?: () => void
+}) {
   return (
-    <span className="sidebar-item">
+    <button
+      type="button"
+      className={`sidebar-item ${active ? 'active' : ''} ${disabled ? 'disabled' : ''}`}
+      disabled={disabled}
+      onClick={onClick}
+    >
       <Icon className="nav-icon muted" />
       {label}
-    </span>
+    </button>
   )
 }
