@@ -168,7 +168,14 @@ export function SpinolaHome({
     () => localStorage.getItem('spinola-demo-started') === 'true',
   )
   const [startedAt, setStartedAt] = useState(
-    () => localStorage.getItem('spinola-demo-started-at') ?? '08:30',
+    () => localStorage.getItem('spinola-demo-started-at') ?? '',
+  )
+  const [endedAt, setEndedAt] = useState(() => localStorage.getItem('spinola-demo-ended-at') ?? '')
+  const [attendanceSaved, setAttendanceSaved] = useState(
+    () => localStorage.getItem('spinola-demo-attendance-saved') === 'true',
+  )
+  const [correctionRequested, setCorrectionRequested] = useState(
+    () => localStorage.getItem('spinola-demo-correction-requested') === 'true',
   )
   const [dayBlocks, setDayBlocks] = useState<Block[]>(() =>
     loadLocal('spinola-demo-blocks', blocks),
@@ -323,7 +330,10 @@ export function SpinolaHome({
   useEffect(() => {
     localStorage.setItem('spinola-demo-started', String(started))
     localStorage.setItem('spinola-demo-started-at', startedAt)
-  }, [started, startedAt])
+    localStorage.setItem('spinola-demo-ended-at', endedAt)
+    localStorage.setItem('spinola-demo-attendance-saved', String(attendanceSaved))
+    localStorage.setItem('spinola-demo-correction-requested', String(correctionRequested))
+  }, [started, startedAt, endedAt, attendanceSaved, correctionRequested])
   useEffect(() => {
     const card = clockRef.current
     const from = clockSize.current
@@ -363,6 +373,20 @@ export function SpinolaHome({
           window.dispatchEvent(new Event('spinola-demo-login'))
           setUserId(id)
         }}
+        onReset={() => {
+          ;[
+            'spinola-demo-user',
+            'spinola-demo-started',
+            'spinola-demo-started-at',
+            'spinola-demo-ended-at',
+            'spinola-demo-attendance-saved',
+            'spinola-demo-correction-requested',
+            'spinola-demo-approved',
+            'spinola-demo-blocks',
+            'spinola-demo-completed',
+          ].forEach((key) => localStorage.removeItem(key))
+          setUserId(null)
+        }}
       />
     )
   }
@@ -372,7 +396,11 @@ export function SpinolaHome({
         <ManagerView
           user={user}
           approved={approved}
-          onApprove={() => setApproved(true)}
+          correctionRequested={correctionRequested}
+          onApprove={() => {
+            setApproved(true)
+            setCorrectionRequested(false)
+          }}
           initialTab={initialManagerTab}
           nowMinutes={nowMinutes}
         />
@@ -396,6 +424,14 @@ export function SpinolaHome({
             Curso 2026/27 · 3º ESO
           </div>
         </div>
+        <div className="legal-demo-note">
+          <ShieldCheck size={16} />
+          <span>
+            Registro diario: la jornada se guarda con inicio y fin. El horario solo ayuda a revisar
+            diferencias; una corrección nunca borra el fichaje original.
+            {correctionRequested && <strong> Corrección pendiente de revisión.</strong>}
+          </span>
+        </div>
         <section
           ref={clockRef}
           className={`clock-card ${clockExpanded ? 'expanded' : ''} ${paused ? 'is-paused' : clockState}`}
@@ -407,9 +443,11 @@ export function SpinolaHome({
                 <span>Mi jornada</span>
                 <em>{started ? 'En curso' : paused ? 'En pausa' : 'Sin iniciar'}</em>
               </div>
-              <strong>{startedAt || '—'}</strong>
+              <strong>{attendanceSaved ? `${startedAt}–${endedAt}` : startedAt || '—'}</strong>
               <small>
-                {started
+                {attendanceSaved
+                  ? 'Registro diario guardado'
+                  : started
                   ? 'Presencia registrada'
                   : paused
                     ? 'Fichaje en pausa'
@@ -431,19 +469,19 @@ export function SpinolaHome({
           <button
             className={`clock-button ${started ? 'finish' : ''}`}
             aria-label={
-              started ? 'Pausar jornada' : paused ? 'Reanudar jornada' : 'Iniciar jornada'
+              started ? 'Iniciar pausa' : paused ? 'Continuar jornada' : 'Iniciar jornada'
             }
             onClick={() => {
-              if (!started)
+              if (!started && !attendanceSaved)
                 setStartedAt(
                   new Date().toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' }),
                 )
-              setStarted(!started)
+              if (!attendanceSaved) setStarted(!started)
             }}
           >
             <span className="clock-icon">{started ? '❚❚' : '▶'}</span>
             <span className="clock-label">
-              {started ? 'Pausar jornada' : paused ? 'Reanudar jornada' : 'Iniciar jornada'}
+              {started ? 'Iniciar pausa' : paused ? 'Continuar jornada' : 'Iniciar jornada'}
             </span>
           </button>
           {paused && (
@@ -452,6 +490,9 @@ export function SpinolaHome({
               onClick={() => {
                 setCompletedIds(
                   dayBlocks.filter((block) => block.kind !== 'hueco').map((block) => block.id),
+                )
+                setEndedAt(
+                  new Date().toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' }),
                 )
                 setReview(true)
               }}
@@ -792,11 +833,11 @@ export function SpinolaHome({
                   <button
                     className="detail-delete"
                     onClick={() => {
-                      setDayBlocks((current) => current.filter((block) => block.id !== selected.id))
+                      setCorrectionRequested(true)
                       setSelectedId(null)
                     }}
                   >
-                    Eliminar actividad
+                    Solicitar corrección
                   </button>
                 </div>
               )}
@@ -864,11 +905,11 @@ export function SpinolaHome({
                       <button
                         type="button"
                         onClick={() => {
-                          setDayBlocks((current) => current.filter((item) => item.id !== block.id))
-                          setCompletedIds((current) => current.filter((id) => id !== block.id))
+                          setCorrectionRequested(true)
+                          setReview(false)
                         }}
                       >
-                        Eliminar
+                        Solicitar corrección
                       </button>
                     </label>
                   ))}
@@ -877,7 +918,14 @@ export function SpinolaHome({
                 <button className="review-cancel" onClick={() => setReview(false)}>
                   Seguir más tarde
                 </button>
-                <button className="save-day" onClick={() => setReview(false)}>
+                <button
+                  className="save-day"
+                  onClick={() => {
+                    setAttendanceSaved(true)
+                    setStarted(false)
+                    setReview(false)
+                  }}
+                >
                   Guardar jornada
                 </button>
               </div>
@@ -925,7 +973,7 @@ export function SpinolaHome({
   }
 }
 
-function DemoLogin({ onSelect }: { onSelect: (id: string) => void }) {
+function DemoLogin({ onSelect, onReset }: { onSelect: (id: string) => void; onReset: () => void }) {
   return (
     <div className="login-page">
       <div className="login-panel">
@@ -955,6 +1003,9 @@ function DemoLogin({ onSelect }: { onSelect: (id: string) => void }) {
         <small className="login-footnote">
           Demo local · no se solicitan credenciales ni se envían datos.
         </small>
+        <button className="demo-reset-button" onClick={onReset}>
+          Reiniciar escenario de demo
+        </button>
       </div>
     </div>
   )
@@ -963,12 +1014,14 @@ function DemoLogin({ onSelect }: { onSelect: (id: string) => void }) {
 function ManagerView({
   user,
   approved,
+  correctionRequested,
   onApprove,
   initialTab,
   nowMinutes,
 }: {
   user: DemoUser
   approved: boolean
+  correctionRequested: boolean
   onApprove: () => void
   initialTab: 'schedule' | 'overview' | 'teachers' | 'incidents'
   nowMinutes: number
@@ -1034,7 +1087,7 @@ function ManagerView({
   useEffect(() => {
     localStorage.setItem('spinola-demo-schedule-repeat', String(scheduleRepeats))
   }, [scheduleRepeats])
-  const pending = scenario !== 'empty' && !approved
+  const pending = scenario !== 'empty' && (!approved || correctionRequested)
   const scheduleTeachers = teachers.map((teacher) => ({
     ...teacher,
     color: teacher.id === 'lucia' ? 'green' : teacher.id === 'diego' ? 'blue' : 'orange',
@@ -1216,10 +1269,10 @@ function ManagerView({
     ) : (
       <div className={`incident-card ${approved ? 'approved' : ''}`}>
         <div className="incident-top">
-          <span className="status-tag">{approved ? 'Aprobada' : 'Pendiente'}</span>
+          <span className="status-tag">{approved && !correctionRequested ? 'Aprobada' : 'Pendiente'}</span>
           <span>Actualizada hace 4 min</span>
         </div>
-        <h3>Reunión de departamento desplazada</h3>
+        <h3>{correctionRequested ? 'Corrección solicitada por Lucía Martín' : 'Reunión de departamento desplazada'}</h3>
         <p>Lucía Martín · DOC-001 · Santa Rafaela</p>
         <div className="comparison">
           <div>
@@ -1238,7 +1291,7 @@ function ManagerView({
           <span>
             <Info size={14} /> El sistema no rellena el hueco automáticamente.
           </span>
-          {!approved && (
+          {(!approved || correctionRequested) && (
             <button onClick={onApprove}>
               <Check size={14} /> Aprobar imputación
             </button>
@@ -1341,10 +1394,20 @@ function ManagerView({
                   }}
                 >
                   {scheduleHours.map((hour) => <span className="manager-calendar-line" key={hour} style={{ top: `${((hour - 480) / 30) * 50}px` }} />)}
+                  {day.id === 2 && nowMinutes >= 480 && nowMinutes <= 1260 && (
+                    <div
+                      className="manager-calendar-current-time"
+                      style={{ top: `${((nowMinutes - 480) / 30) * 50}px` }}
+                    >
+                      <span>{formatTime(nowMinutes)}</span><i />
+                    </div>
+                  )}
                   {dayBlocks.map((block) => {
                     const teacher = scheduleTeachers.find((item) => item.id === block.teacherId)
                     return <button className={`center-schedule-block manager-calendar-block ${block.kind} ${teacher?.color ?? ''} ${scheduleDragId === block.id ? 'dragging' : ''}`} draggable key={block.id} style={{ top: `${((block.startMin - 480) / 30) * 50}px`, height: `${Math.max(34, ((block.endMin - block.startMin) / 30) * 50 - 4)}px` }} onClick={() => setScheduleSelectedId(block.id)} onDragStart={(event) => { setScheduleDragId(block.id); event.dataTransfer.setData('center-schedule-block', block.id) }} onDragEnd={() => setScheduleDragId(null)}>
-                      <strong>{block.label}</strong><small>{teacher?.name} · {formatTime(block.startMin)}</small>
+                      <strong>{block.label}</strong>
+                      <small>{block.subject} · {scheduleRepeats ? 'Cada semana' : 'Solo esta semana'}</small>
+                      <em>{formatTime(block.startMin)}–{formatTime(block.endMin)} · {teacher?.name}</em>
                     </button>
                   })}
                 </div>

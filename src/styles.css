@@ -452,10 +452,14 @@ body {
 .manager-calendar-day-head small { color: #2d654d; font-size: 9px; }
 .manager-calendar-day-body { position: relative; height: 1350px; background: repeating-linear-gradient(to bottom, transparent 0, transparent 49px, #eef1f5 49px, #eef1f5 50px); }
 .manager-calendar-line { position: absolute; right: 0; left: 0; border-top: 1px solid rgba(238, 241, 245, .75); pointer-events: none; }
+.manager-calendar-current-time { position: absolute; right: 0; left: 0; z-index: 4; display: flex; align-items: center; pointer-events: none; transform: translateY(-50%); }
+.manager-calendar-current-time span { position: absolute; left: -49px; border-radius: 999px; background: #d85d4a; padding: 3px 5px; color: #fff; font-size: 9px; font-weight: 500; line-height: 1; }
+.manager-calendar-current-time i { display: block; width: 100%; border-top: 2px solid #d85d4a; box-shadow: 0 0 0 3px #d85d4a14; }
 .manager-calendar-block { position: absolute; right: 4px; left: 4px; z-index: 1; overflow: hidden; border: 0; border-left: 3px solid #4d8c6c; border-radius: 6px; background: #e8f0ff; padding: 5px 6px; color: #1d4ed8; text-align: left; cursor: pointer; }
 .manager-calendar-block strong, .manager-calendar-block small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .manager-calendar-block strong { font-size: 10px; line-height: 1.2; }
 .manager-calendar-block small { margin-top: 3px; font-size: 9px; opacity: .8; }
+.manager-calendar-block em { display: block; overflow: hidden; margin-top: 2px; color: currentColor; font-size: 9px; font-style: normal; opacity: .75; text-overflow: ellipsis; white-space: nowrap; }
 .manager-calendar-block.blue { border-left-color: #3b82f6; }
 .manager-calendar-block.orange { border-left-color: #f59e0b; }
 .manager-calendar-block.tutoria, .manager-calendar-block.reunion, .manager-calendar-block.preparacion, .manager-calendar-block.complementaria { background: #f1eafe; color: #6d28d9; }
@@ -706,6 +710,7 @@ body {
   color: #a25d32;
 }
 .center-schedule {
+  display: none;
   overflow-x: auto;
   border: 1px solid #edf0ed;
   border-radius: 10px;
@@ -1875,6 +1880,9 @@ h2 {
   cursor: pointer;
 }
 .clock-card.expanded .clock-end {
+  display: block;
+}
+.clock-card.is-paused .clock-end {
   display: block;
 }
 .clock-card.expanded .status-dot {
@@ -4143,4 +4151,15 @@ body {
   color: #315247;
   font-size: 0.82rem;
   line-height: 1.45;
+}
+
+.demo-reset-button {
+  display: block;
+  margin: 0.9rem auto 0;
+  border: 0;
+  background: transparent;
+  color: #64748b;
+  font-size: 0.75rem;
+  text-decoration: underline;
+  cursor: pointer;
 }
