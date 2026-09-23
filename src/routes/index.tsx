@@ -391,7 +391,7 @@ export function SpinolaHome({
             <p>Martes, 22 de septiembre · Santa Rafaela</p>
           </div>
           <div className="date-chip">
-            <strong>Plantilla activa</strong>
+            <strong>Horario habitual</strong>
             <br />
             Curso 2026/27 · 3º ESO
           </div>
