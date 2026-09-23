@@ -1678,14 +1678,7 @@ function ManagerView({
 
   const templatesPanel = (
     <section className="templates-panel">
-      <div className="staff-panel-head">
-        <div>
-          <h2>Patrones opcionales</h2>
-          <p className="calendar-hint">
-            Guarda un horario base para reutilizarlo cuando varios profesores compartan la misma
-            jornada.
-          </p>
-        </div>
+      <div className="template-toolbar">
         <button className="template-action" onClick={() => setNewTemplateOpen((open) => !open)}>
           {newTemplateOpen ? 'Cerrar' : '+ Nueva plantilla'}
         </button>

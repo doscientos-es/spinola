@@ -3641,8 +3641,9 @@ body {
   background: #fff;
   padding: 18px;
 }
-.templates-panel .staff-panel-head {
-  margin-bottom: 0;
+.template-toolbar {
+  display: flex;
+  justify-content: flex-end;
 }
 .template-create {
   display: flex;
