@@ -382,7 +382,7 @@ export function SpinolaHome({
     return <Navigate to="/acceso" replace />
   }
   return (
-    <div className="spinola-page">
+    <div className={`spinola-page ${isManager ? 'manager-shell-page' : ''}`}>
       {isManager ? (
         <ManagerView
           user={user}

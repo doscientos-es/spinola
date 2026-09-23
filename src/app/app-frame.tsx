@@ -39,6 +39,7 @@ export function AppFrame({ children }: { children: ReactNode }) {
       '/horario': 'schedule',
       '/profesores': 'teachers',
       '/revisiones': 'incidents',
+      '/configuracion': 'settings',
     }[location.pathname]
     if (routeTab) setManagerTab(routeTab)
   }, [location.pathname])
@@ -59,7 +60,9 @@ export function AppFrame({ children }: { children: ReactNode }) {
       window.removeEventListener('spinola-manager-tab', onManagerTab)
     }
   }, [])
-  if (!loggedIn) return <main className="login-shell">{children}</main>
+  if (!loggedIn || location.pathname === '/acceso') {
+    return <main className="login-shell">{children}</main>
+  }
   return (
     <AppShell className="flex min-h-svh">
       <AppShellSidebar
@@ -115,7 +118,12 @@ export function AppFrame({ children }: { children: ReactNode }) {
               onClick={() => selectManagerTab('incidents')}
             />
             <SidebarItem label="Informes" icon={FolderKanban} disabled />
-            <SidebarItem label="Configuración" icon={Settings2} disabled />
+            <SidebarItem
+              label="Configuración"
+              icon={Settings2}
+              active={managerTab === 'settings'}
+              onClick={() => navigate({ to: '/configuracion' })}
+            />
           </nav>
         ) : (
           <>
@@ -162,7 +170,8 @@ export function AppFrame({ children }: { children: ReactNode }) {
             id="logout"
             onAction={() => {
               localStorage.removeItem('spinola-demo-user')
-              window.location.reload()
+              window.dispatchEvent(new Event('spinola-demo-login'))
+              navigate({ to: '/acceso' })
             }}
           >
             <LogOut size={14} />

@@ -10,6 +10,8 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as AccesoRouteImport } from './routes/acceso'
+import { Route as ConfiguracionRouteImport } from './routes/configuracion'
 import { Route as HorarioRouteImport } from './routes/horario'
 import { Route as ProfesoresRouteImport } from './routes/profesores'
 import { Route as ResumenRouteImport } from './routes/resumen'
@@ -18,6 +20,16 @@ import { Route as RevisionesRouteImport } from './routes/revisiones'
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AccesoRoute = AccesoRouteImport.update({
+  id: '/acceso',
+  path: '/acceso',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ConfiguracionRoute = ConfiguracionRouteImport.update({
+  id: '/configuracion',
+  path: '/configuracion',
   getParentRoute: () => rootRouteImport,
 } as any)
 const HorarioRoute = HorarioRouteImport.update({
@@ -43,6 +55,8 @@ const RevisionesRoute = RevisionesRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/acceso': typeof AccesoRoute
+  '/configuracion': typeof ConfiguracionRoute
   '/horario': typeof HorarioRoute
   '/profesores': typeof ProfesoresRoute
   '/resumen': typeof ResumenRoute
@@ -50,6 +64,8 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/acceso': typeof AccesoRoute
+  '/configuracion': typeof ConfiguracionRoute
   '/horario': typeof HorarioRoute
   '/profesores': typeof ProfesoresRoute
   '/resumen': typeof ResumenRoute
@@ -58,6 +74,8 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/acceso': typeof AccesoRoute
+  '/configuracion': typeof ConfiguracionRoute
   '/horario': typeof HorarioRoute
   '/profesores': typeof ProfesoresRoute
   '/resumen': typeof ResumenRoute
@@ -65,14 +83,38 @@ export interface FileRoutesById {
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/horario' | '/profesores' | '/resumen' | '/revisiones'
+  fullPaths:
+    | '/'
+    | '/acceso'
+    | '/configuracion'
+    | '/horario'
+    | '/profesores'
+    | '/resumen'
+    | '/revisiones'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/horario' | '/profesores' | '/resumen' | '/revisiones'
-  id: '__root__' | '/' | '/horario' | '/profesores' | '/resumen' | '/revisiones'
+  to:
+    | '/'
+    | '/acceso'
+    | '/configuracion'
+    | '/horario'
+    | '/profesores'
+    | '/resumen'
+    | '/revisiones'
+  id:
+    | '__root__'
+    | '/'
+    | '/acceso'
+    | '/configuracion'
+    | '/horario'
+    | '/profesores'
+    | '/resumen'
+    | '/revisiones'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AccesoRoute: typeof AccesoRoute
+  ConfiguracionRoute: typeof ConfiguracionRoute
   HorarioRoute: typeof HorarioRoute
   ProfesoresRoute: typeof ProfesoresRoute
   ResumenRoute: typeof ResumenRoute
@@ -86,6 +128,20 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/acceso': {
+      id: '/acceso'
+      path: '/acceso'
+      fullPath: '/acceso'
+      preLoaderRoute: typeof AccesoRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/configuracion': {
+      id: '/configuracion'
+      path: '/configuracion'
+      fullPath: '/configuracion'
+      preLoaderRoute: typeof ConfiguracionRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/horario': {
@@ -121,6 +177,8 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AccesoRoute: AccesoRoute,
+  ConfiguracionRoute: ConfiguracionRoute,
   HorarioRoute: HorarioRoute,
   ProfesoresRoute: ProfesoresRoute,
   ResumenRoute: ResumenRoute,

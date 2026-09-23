@@ -2894,6 +2894,11 @@ body {
   max-width: 1060px;
   padding: 10px 0 120px;
 }
+.manager-shell-page {
+  width: 100%;
+  max-width: none;
+  padding-right: 10px;
+}
 .page-intro {
   margin: 0 0 16px;
   gap: 20px;
