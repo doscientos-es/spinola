@@ -1028,6 +1028,37 @@ function ManagerView({
       .reduce((total, block) => total + block.endMin - block.startMin, 0)
     return { lectiva, complementaria }
   }
+  function scheduleOverlaps() {
+    const overlaps: Array<{ teacher: string; first: string; second: string }> = []
+    scheduleTeachers.forEach((teacher) => {
+      const blocks = scheduleBlocks
+        .filter((block) => block.teacherId === teacher.id && (block.day ?? 1) === scheduleDay)
+        .sort((a, b) => a.startMin - b.startMin)
+      blocks.forEach((block, index) => {
+        const other = blocks.slice(index + 1).find((candidate) => candidate.startMin < block.endMin)
+        if (other) overlaps.push({ teacher: teacher.name, first: block.label, second: other.label })
+      })
+    })
+    return overlaps
+  }
+  function copyDayToWeek() {
+    const source = scheduleBlocks.filter((block) => (block.day ?? 1) === scheduleDay)
+    setScheduleBlocks((current) => [
+      ...current.filter((block) => {
+        const day = block.day ?? 1
+        return day === scheduleDay || !days.some((item) => item.id === day)
+      }),
+      ...days
+        .filter((day) => day.id !== scheduleDay)
+        .flatMap((day) =>
+          source.map((block) => ({
+            ...block,
+            id: `${block.id}-day-${day.id}`,
+            day: day.id,
+          })),
+        ),
+    ])
+  }
   const days = [
     { id: 1, label: 'Lunes' },
     { id: 2, label: 'Martes' },
@@ -1214,7 +1245,16 @@ function ManagerView({
           />
           Repetir cada semana
         </label>
+        <button className="schedule-copy-week" onClick={copyDayToWeek}>
+          Copiar {days.find((day) => day.id === scheduleDay)?.label.toLowerCase()} al resto
+        </button>
       </div>
+      {scheduleOverlaps().length > 0 && (
+        <div className="schedule-conflict-banner" role="alert">
+          <strong>Hay solapes en {days.find((day) => day.id === scheduleDay)?.label}.</strong>{' '}
+          {scheduleOverlaps().map((overlap) => `${overlap.teacher}: ${overlap.first} / ${overlap.second}`).join(' · ')}
+        </div>
+      )}
       <Dialog open={scheduleCreateOpen} onOpenChange={setScheduleCreateOpen}>
         <DialogContent className="schedule-dialog" showCloseButton>
           <DialogHeader>

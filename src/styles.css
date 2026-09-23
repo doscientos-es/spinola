@@ -380,6 +380,25 @@ body {
   font-size: 0.78rem;
   font-weight: 600;
 }
+
+.schedule-copy-week {
+  border: 0;
+  background: transparent;
+  color: #1f6feb;
+  font-size: 0.78rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.schedule-conflict-banner {
+  margin: 0.5rem 0 1rem;
+  border: 1px solid #f2c4c4;
+  border-radius: 0.75rem;
+  background: #fff5f5;
+  color: #a33a3a;
+  padding: 0.7rem 0.9rem;
+  font-size: 0.8rem;
+}
 .schedule-add,
 .schedule-create-submit {
   min-height: 34px;
