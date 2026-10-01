@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { allocatePresence, overlapMinutes } from './time-allocation'
+import { allocatePresence, allocateSessions, overlapMinutes } from './time-allocation'
 
 describe('asignación de presencia docente', () => {
   it('calcula el solape sin convertir un hueco en horas lectivas', () => {
@@ -11,6 +11,24 @@ describe('asignación de presencia docente', () => {
       { start: 720, end: 780, kind: 'pool' },
     ])
     expect(result.map((block) => block.minutes)).toEqual([60, 0, 60, 60])
+  })
+
+  it('imputa varias sesiones con pausa y deja el resto sin asignar', () => {
+    const result = allocateSessions(
+      [
+        { start: 504, end: 660 },
+        { start: 715, end: 790 },
+      ],
+      [
+        { start: 510, end: 570, kind: 'teaching' },
+        { start: 570, end: 600, kind: 'break' },
+        { start: 600, end: 660, kind: 'teaching' },
+        { start: 720, end: 780, kind: 'pool' },
+      ],
+    )
+    expect(result.blocks.map((block) => block.minutes)).toEqual([60, 0, 60, 60])
+    expect(result.presence).toBe(231)
+    expect(result.unassigned).toBe(21)
   })
 
   it('devuelve cero para intervalos inválidos', () => {

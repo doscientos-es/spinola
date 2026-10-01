@@ -8,6 +8,8 @@ import {
   DialogTitle,
   Button,
   IconButton,
+  PopoverContent,
+  PopoverTrigger,
 } from '@doscientos/ui'
 import { createFileRoute, Navigate, useNavigate } from '@tanstack/react-router'
 import {
@@ -15,6 +17,7 @@ import {
   ChevronDown,
   ChevronLeft,
   ChevronRight,
+  Download,
   Info,
   Pencil,
   Plus,
@@ -25,8 +28,11 @@ import {
 import { animate } from 'motion/react'
 import { useEffect, useMemo, useRef, useState, type DragEvent, type PointerEvent } from 'react'
 
+import { allocateSessions } from '../features/attendance/application/time-allocation'
+
 export const Route = createFileRoute('/')({ component: SpinolaHome })
 
+type PoolId = 'evaluacion' | 'familias' | 'reuniones'
 type Block = {
   id: string
   start: string
@@ -36,7 +42,53 @@ type Block = {
   note: string
   startMin: number
   endMin: number
+  day?: number
+  pool?: PoolId
 }
+type Session = { start: number; end: number | null }
+type PoolEntry = { id: string; pool: PoolId | 'presencia'; minutes: number; label: string }
+// Categorías y horas anuales de ejemplo: pendientes de validar con la Fundación.
+const pools: { id: PoolId; label: string; annualMin: number; usedMin: number; quick: string }[] = [
+  { id: 'evaluacion', label: 'Evaluaciones', annualMin: 40 * 60, usedMin: 6 * 60, quick: 'Sesión de evaluación' },
+  { id: 'familias', label: 'Entrevistas con familias', annualMin: 25 * 60, usedMin: 3 * 60 + 30, quick: 'Entrevista con familia' },
+  { id: 'reuniones', label: 'Reuniones', annualMin: 35 * 60, usedMin: 9 * 60, quick: 'Reunión de coordinación' },
+]
+const weekDayShort = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie']
+const weekDayLabel = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes']
+const todayIndex = Math.min(4, (new Date().getDay() + 6) % 7)
+// El horario guardado usa el día 1 como «hoy»: se intercambia con el día real de la semana.
+const slotOf = (day: number) => (day === 1 ? todayIndex : day === todayIndex ? 1 : day)
+const shortDate = (date: Date) =>
+  date.toLocaleDateString('es-ES', { day: 'numeric', month: 'short' }).replace('.', '')
+function weekDates(offsetWeeks = 0) {
+  const monday = new Date()
+  monday.setDate(monday.getDate() - ((monday.getDay() + 6) % 7) + offsetWeeks * 7)
+  return Array.from({ length: 5 }, (_, index) => {
+    const date = new Date(monday)
+    date.setDate(monday.getDate() + index)
+    return date
+  })
+}
+function weekRangeLabel(offsetWeeks = 0) {
+  const dates = weekDates(offsetWeeks)
+  const first = dates[0]!
+  const last = dates[4]!
+  const start = first.getMonth() === last.getMonth() ? String(first.getDate()) : shortDate(first)
+  return `${start}–${shortDate(last)} ${last.getFullYear()}`
+}
+export function resetDemoData() {
+  Object.keys(localStorage)
+    .filter((key) => key.startsWith('spinola-demo-'))
+    .forEach((key) => localStorage.removeItem(key))
+  window.location.reload()
+}
+const simulatedSessions: Session[] = [
+  { start: 504, end: 660 },
+  { start: 715, end: 790 },
+]
+const nowTime = () => new Date().getHours() * 60 + new Date().getMinutes()
+const formatDuration = (minutes: number) =>
+  minutes < 60 ? `${minutes} min` : `${Math.floor(minutes / 60)} h${minutes % 60 ? ` ${minutes % 60} min` : ''}`
 type CenterScheduleBlock = {
   id: string
   teacherId: string
@@ -111,7 +163,41 @@ const blocks: Block[] = [
     note: 'Consume bolsa complementaria al aprobarse',
     startMin: 720,
     endMin: 780,
+    pool: 'reuniones',
   },
+]
+const planned = (
+  id: string,
+  day: number,
+  startMin: number,
+  endMin: number,
+  label: string,
+  kind: Block['kind'],
+): Block => ({
+  id,
+  day,
+  start: `${String(Math.floor(startMin / 60)).padStart(2, '0')}:${String(startMin % 60).padStart(2, '0')}`,
+  end: `${String(Math.floor(endMin / 60)).padStart(2, '0')}:${String(endMin % 60).padStart(2, '0')}`,
+  label,
+  kind,
+  note: kind === 'lectiva' ? 'Bloque lectivo planificado' : 'Actividad complementaria planificada',
+  startMin,
+  endMin,
+})
+// Horario previsto de los demás días de la semana (0 = lunes, 1 = martes = hoy).
+const otherDayBlocks: Block[] = [
+  planned('d0-1', 0, 510, 570, 'Matemáticas · 3º ESO', 'lectiva'),
+  planned('d0-2', 0, 570, 600, 'Recreo', 'hueco'),
+  planned('d0-3', 0, 600, 660, 'Tutoría · 2º B', 'complementaria'),
+  planned('d2-1', 2, 510, 570, 'Matemáticas · 3º ESO', 'lectiva'),
+  planned('d2-2', 2, 570, 600, 'Recreo', 'hueco'),
+  planned('d2-3', 2, 660, 750, 'Preparación y evaluación', 'complementaria'),
+  planned('d3-1', 3, 540, 600, 'Inglés · 2º ESO', 'lectiva'),
+  planned('d3-2', 3, 600, 630, 'Recreo', 'hueco'),
+  planned('d3-3', 3, 630, 690, 'Guardia · Patio', 'complementaria'),
+  planned('d4-1', 4, 510, 570, 'Matemáticas · 3º ESO', 'lectiva'),
+  planned('d4-2', 4, 570, 600, 'Recreo', 'hueco'),
+  planned('d4-3', 4, 720, 780, 'Atención a familias', 'complementaria'),
 ]
 const centerSchedule: CenterScheduleBlock[] = [
   {
@@ -171,12 +257,12 @@ export function SpinolaHome({
   )
   const user = demoUsers.find((item) => item.id === userId) ??
     demoUsers[0] ?? {
-      id: 'lucia',
-      name: 'Lucía Martín',
-      role: 'docente' as const,
-      centre: 'Santa Rafaela · Madrid',
-      initials: 'LM',
-    }
+    id: 'lucia',
+    name: 'Lucía Martín',
+    role: 'docente' as const,
+    centre: 'Santa Rafaela · Madrid',
+    initials: 'LM',
+  }
   const [started, setStarted] = useState(
     () => localStorage.getItem('spinola-demo-started') === 'true',
   )
@@ -190,9 +276,14 @@ export function SpinolaHome({
   const [correctionRequested, setCorrectionRequested] = useState(
     () => localStorage.getItem('spinola-demo-correction-requested') === 'true',
   )
-  const [dayBlocks, setDayBlocks] = useState<Block[]>(() =>
-    loadLocal('spinola-demo-blocks', blocks),
-  )
+  const [dayBlocks, setDayBlocks] = useState<Block[]>(() => {
+    const stored = loadLocal('spinola-demo-blocks', blocks)
+    // Guardados anteriores sin horario de otros días: añadimos el previsto de la semana.
+    return stored.some((block) => block.day !== undefined)
+      ? stored
+      : [...stored, ...otherDayBlocks]
+  })
+  const [createDay, setCreateDay] = useState(1)
   const [review, setReview] = useState(false)
   const [approved, setApproved] = useState(
     () => localStorage.getItem('spinola-demo-approved') === 'true',
@@ -203,7 +294,6 @@ export function SpinolaHome({
       blocks.filter((block) => block.kind !== 'hueco').map((block) => block.id),
     ),
   )
-  const [showGuide, setShowGuide] = useState(false)
   const [clockExpanded, setClockExpanded] = useState(false)
   const [nowMinutes, setNowMinutes] = useState(
     () => new Date().getHours() * 60 + new Date().getMinutes(),
@@ -225,12 +315,122 @@ export function SpinolaHome({
     startMin: number
     endMin: number
   } | null>(null)
-  const covered = useMemo(() => (started ? 60 : 0), [started])
+  const [sessions, setSessions] = useState<Session[]>(() => {
+    const stored = loadLocal<Session[]>('spinola-demo-sessions', [])
+    if (stored.length || !/^\d{1,2}:\d{2}/.test(startedAt)) return stored
+    const start = parseTime(startedAt)
+    const end = attendanceSaved && endedAt ? parseTime(endedAt) : started ? null : nowTime()
+    return [{ start, end }]
+  })
+  const [poolEntries, setPoolEntries] = useState<PoolEntry[]>(() =>
+    loadLocal('spinola-demo-pool-entries', []),
+  )
+  const [createPool, setCreatePool] = useState<PoolId>('reuniones')
+  const [selectedDay, setSelectedDay] = useState(todayIndex)
+  const [teacherTab, setTeacherTab] = useState<'horario' | 'bolsas'>('horario')
   const selected = dayBlocks.find((block) => block.id === selectedId)
-  const positionedBlocks = useMemo(() => layoutOverlaps(dayBlocks), [dayBlocks])
   const isManager = user.role !== 'docente'
   const clockState = started ? 'is-active' : review ? 'is-review' : 'is-idle'
   const paused = !started && startedAt !== ''
+  const liveSessions = useMemo(
+    () =>
+      sessions.map((session) => ({
+        start: session.start,
+        end: session.end ?? Math.max(session.start, nowMinutes),
+      })),
+    [sessions, nowMinutes],
+  )
+  const todayBlocks = useMemo(
+    () => dayBlocks.filter((block) => (block.day ?? 1) === 1),
+    [dayBlocks],
+  )
+  const allocation = useMemo(() => {
+    const result = allocateSessions(
+      liveSessions,
+      todayBlocks.map((block) => ({
+        id: block.id,
+        start: block.startMin,
+        end: block.endMin,
+        kind: (
+          { lectiva: 'teaching', complementaria: 'complementary', bolsa: 'pool', hueco: 'break' } as const
+        )[block.kind],
+      })),
+    )
+    const minutesFor = (kind: Block['kind']) =>
+      todayBlocks.reduce(
+        (total, block, index) =>
+          block.kind === kind ? total + (result.blocks[index]?.minutes ?? 0) : total,
+        0,
+      )
+    const plannedFor = (kind: Block['kind']) =>
+      todayBlocks
+        .filter((block) => block.kind === kind)
+        .reduce((total, block) => total + block.endMin - block.startMin, 0)
+    const poolToday = Object.fromEntries(
+      pools.map((pool) => [
+        pool.id,
+        todayBlocks.reduce(
+          (total, block, index) =>
+            block.kind === 'bolsa' && (block.pool ?? 'reuniones') === pool.id
+              ? total + (result.blocks[index]?.minutes ?? 0)
+              : total,
+          0,
+        ) +
+        poolEntries
+          .filter((entry) => entry.pool === pool.id)
+          .reduce((total, entry) => total + entry.minutes, 0),
+      ]),
+    ) as Record<PoolId, number>
+    const handled = poolEntries.reduce((total, entry) => total + entry.minutes, 0)
+    return {
+      byBlock: new Map(todayBlocks.map((block, index) => [block.id, result.blocks[index]?.minutes ?? 0])),
+      presence: result.presence,
+      unassigned: Math.max(0, result.unassigned - handled),
+      lectiva: { covered: minutesFor('lectiva'), planned: plannedFor('lectiva') },
+      complementaria: { covered: minutesFor('complementaria'), planned: plannedFor('complementaria') },
+      poolToday,
+    }
+  }, [liveSessions, todayBlocks, poolEntries])
+  const poolRows = pools.map((pool) => {
+    const today = allocation.poolToday[pool.id] ?? 0
+    return { ...pool, today, remaining: Math.max(0, pool.annualMin - pool.usedMin - today) }
+  })
+  function toggleSession() {
+    if (attendanceSaved) return
+    const minute = nowTime()
+    if (!started) {
+      if (!startedAt)
+        setStartedAt(new Date().toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' }))
+      setSessions((current) => [...current, { start: minute, end: null }])
+    } else {
+      setSessions((current) =>
+        current.map((session) =>
+          session.end === null ? { ...session, end: Math.max(session.start, minute) } : session,
+        ),
+      )
+    }
+    setStarted(!started)
+  }
+  function simulateDay() {
+    const now = nowTime()
+    setSessions(
+      simulatedSessions
+        .filter((session) => session.start < now)
+        .map((session) => ({ start: session.start, end: Math.min(session.end ?? now, now) })),
+    )
+    setPoolEntries([])
+    setStartedAt('08:24')
+    setEndedAt('')
+    setStarted(false)
+    setAttendanceSaved(false)
+  }
+  function openPoolActivity(pool: (typeof pools)[number]) {
+    openCreate(Math.max(480, Math.min(1200, nowTime())))
+    setCreateDay(1)
+    setCreateKind('bolsa')
+    setCreatePool(pool.id)
+    setCreateLabel(pool.quick)
+  }
   useEffect(() => {
     const updateNow = () => {
       const current = new Date()
@@ -278,10 +478,12 @@ export function SpinolaHome({
         kind: createKind,
         note:
           createKind === 'bolsa'
-            ? 'Se imputa a la bolsa complementaria disponible'
+            ? `Se imputa a la bolsa de ${pools.find((pool) => pool.id === createPool)?.label.toLowerCase()}`
             : `${kindLabel(createKind)} añadida desde el horario`,
         startMin: createStartMin,
         endMin,
+        day: createDay,
+        ...(createKind === 'bolsa' ? { pool: createPool } : {}),
       },
     ])
     setCreateOpen(false)
@@ -338,6 +540,10 @@ export function SpinolaHome({
     localStorage.setItem('spinola-demo-completed', JSON.stringify(completedIds))
   }, [completedIds])
   useEffect(() => {
+    localStorage.setItem('spinola-demo-sessions', JSON.stringify(sessions))
+    localStorage.setItem('spinola-demo-pool-entries', JSON.stringify(poolEntries))
+  }, [sessions, poolEntries])
+  useEffect(() => {
     localStorage.setItem('spinola-demo-approved', String(approved))
   }, [approved])
   useEffect(() => {
@@ -378,6 +584,15 @@ export function SpinolaHome({
       height.stop()
     }
   }, [clockExpanded])
+  useEffect(() => {
+    const onKey = (event: globalThis.KeyboardEvent) => {
+      if (!event.altKey || !event.shiftKey) return
+      if (event.code === 'KeyS' && !isManager) simulateDay()
+      if (event.code === 'KeyR') resetDemoData()
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  })
   if (!userId) {
     return <Navigate to="/acceso" replace />
   }
@@ -388,45 +603,96 @@ export function SpinolaHome({
           user={user}
           approved={approved}
           correctionRequested={correctionRequested}
-          onResetDemo={() => {
-            ;[
-              'spinola-demo-user',
-              'spinola-demo-started',
-              'spinola-demo-started-at',
-              'spinola-demo-ended-at',
-              'spinola-demo-attendance-saved',
-              'spinola-demo-correction-requested',
-              'spinola-demo-approved',
-              'spinola-demo-blocks',
-              'spinola-demo-completed',
-            ].forEach((key) => localStorage.removeItem(key))
-            window.location.reload()
-          }}
           onApprove={() => {
             setApproved(true)
             setCorrectionRequested(false)
           }}
           initialTab={initialManagerTab}
           nowMinutes={nowMinutes}
+          luciaPools={poolRows}
+          luciaPresence={allocation.presence}
         />
       ) : (
-        <TeacherView />
+        TeacherView()
       )}
     </div>
   )
 
   function TeacherView() {
-    const teacherWeekDays = [
-      { short: 'Lun', label: 'Lunes', date: '21 sep.', activities: ['Matemáticas · 3º ESO', 'Tutoría · 2º B'] },
-      { short: 'Mar', label: 'Martes', date: '22 sep.', activities: ['Lengua · 1º ESO', 'Reunión de departamento'] },
-      { short: 'Mié', label: 'Miércoles', date: '23 sep.', activities: ['Matemáticas · 3º ESO', 'Preparación y evaluación'] },
-      { short: 'Jue', label: 'Jueves', date: '24 sep.', activities: ['Inglés · 2º ESO', 'Guardia · Patio'] },
-      { short: 'Vie', label: 'Viernes', date: '25 sep.', activities: ['Matemáticas · 3º ESO', 'Atención a familias'] },
+    const weekActivities = [
+      ['Matemáticas · 3º ESO', 'Tutoría · 2º B'],
+      ['Lengua · 1º ESO', 'Reunión de departamento'],
+      ['Matemáticas · 3º ESO', 'Preparación y evaluación'],
+      ['Inglés · 2º ESO', 'Guardia · Patio'],
+      ['Matemáticas · 3º ESO', 'Atención a familias'],
     ]
-    const [selectedDay, setSelectedDay] = useState(1)
-    const selectedTeacherDay = teacherWeekDays[selectedDay] ?? teacherWeekDays[1]!
+    const teacherWeekDays = weekDates().map((date, index) => ({
+      short: weekDayShort[index]!,
+      label: weekDayLabel[index]!,
+      date: shortDate(date),
+      activities: weekActivities[slotOf(index)]!,
+    }))
+    const selectedTeacherDay = teacherWeekDays[selectedDay] ?? teacherWeekDays[todayIndex]!
     const moveTeacherDay = (offset: number) =>
       setSelectedDay((current) => Math.max(0, Math.min(teacherWeekDays.length - 1, current + offset)))
+    const blocksOfDay = (index: number) => dayBlocks.filter((block) => slotOf(block.day ?? 1) === index)
+    const pastDayRange = (index: number) => {
+      const worked = blocksOfDay(index).filter((block) => block.kind !== 'hueco')
+      if (!worked.length) return []
+      return [
+        {
+          start: Math.min(...worked.map((block) => block.startMin)) - 7,
+          end: Math.max(...worked.map((block) => block.endMin)) + 4,
+        },
+      ]
+    }
+    const trackedRanges = (
+      selectedDay === todayIndex ? liveSessions : selectedDay < todayIndex ? pastDayRange(selectedDay) : []
+    )
+      .map((session) => ({ start: Math.max(480, session.start), end: Math.min(1260, session.end) }))
+      .filter((range) => range.end > range.start)
+    const nextBlock = todayBlocks
+      .filter((block) => block.kind !== 'hueco' && block.startMin > nowMinutes)
+      .sort((a, b) => a.startMin - b.startMin)[0]
+    const blockStatus = (block: Block) => {
+      const minutes = allocation.byBlock.get(block.id) ?? 0
+      const plannedMin = block.endMin - block.startMin
+      if (block.kind === 'hueco') return { tone: 'muted', text: 'No computa' }
+      if (minutes >= plannedMin) return { tone: 'ok', text: `${minutes} min` }
+      if (minutes > 0) return { tone: 'partial', text: `${minutes} / ${plannedMin} min` }
+      if (block.startMin >= nowMinutes) return { tone: 'muted', text: 'Previsto' }
+      return { tone: 'warn', text: 'Sin fichaje' }
+    }
+    const assignUnassigned = (pool: PoolEntry['pool']) =>
+      setPoolEntries((current) => [
+        ...current,
+        {
+          id: `entry-${Date.now()}`,
+          pool,
+          minutes: allocation.unassigned,
+          label: pool === 'presencia' ? 'Presencia sin actividad' : (pools.find((item) => item.id === pool)?.label ?? ''),
+        },
+      ])
+    const poolRemaining = poolRows.reduce((total, pool) => total + pool.remaining, 0)
+    const poolAnnual = poolRows.reduce((total, pool) => total + pool.annualMin, 0)
+    const daySummary = [
+      { key: 'lectiva', dot: 'lectiva', label: 'Lectivas', minutes: allocation.lectiva.covered },
+      { key: 'complementaria', dot: 'complementaria', label: 'Complementarias', minutes: allocation.complementaria.covered },
+      ...poolRows.map((pool) => ({ key: pool.id, dot: 'bolsa', label: pool.label, minutes: pool.today })),
+    ].filter((item) => item.minutes > 0)
+    const missedBlocks = todayBlocks.filter((block) => blockStatus(block).tone === 'warn')
+    const unassignedChips = (
+      <div className="allocation-chips">
+        {pools.map((pool) => (
+          <button key={pool.id} onClick={() => assignUnassigned(pool.id)}>
+            {pool.label}
+          </button>
+        ))}
+        <button className="ghost" onClick={() => assignUnassigned('presencia')}>
+          Sólo presencia
+        </button>
+      </div>
+    )
     return (
       <>
         <div className="page-intro">
@@ -439,14 +705,6 @@ export function SpinolaHome({
             <br />
             Curso 2026/27 · 3º ESO
           </div>
-        </div>
-        <div className="legal-demo-note">
-          <ShieldCheck size={16} />
-          <span>
-            Registro diario: la jornada se guarda con inicio y fin. El horario solo ayuda a revisar
-            diferencias; una corrección nunca borra el fichaje original.
-            {correctionRequested && <strong> Corrección pendiente de revisión.</strong>}
-          </span>
         </div>
         <section
           ref={clockRef}
@@ -464,10 +722,10 @@ export function SpinolaHome({
                 {attendanceSaved
                   ? 'Registro diario guardado'
                   : started
-                  ? 'Presencia registrada'
-                  : paused
-                    ? 'Fichaje en pausa'
-                    : 'Tu primer bloque · 08:30'}
+                    ? 'Presencia registrada'
+                    : paused
+                      ? 'Fichaje en pausa'
+                      : 'Tu primer bloque · 08:30'}
               </small>
             </div>
             <span className="clock-chevron">{clockExpanded ? '×' : '↗'}</span>
@@ -475,11 +733,13 @@ export function SpinolaHome({
           <div className="clock-details" aria-hidden={!clockExpanded}>
             <div>
               <small>Tiempo fichado</small>
-              <strong>{started ? '1 h 42 min' : '—'}</strong>
+              <strong>{allocation.presence ? formatDuration(allocation.presence) : '—'}</strong>
             </div>
             <div>
               <small>Próximo bloque</small>
-              <strong>{started ? 'Recreo · 09:30' : 'Matemáticas · 08:30'}</strong>
+              <strong>
+                {nextBlock ? `${nextBlock.label} · ${formatTime(nextBlock.startMin)}` : 'Sin más bloques hoy'}
+              </strong>
             </div>
           </div>
           <button
@@ -487,13 +747,7 @@ export function SpinolaHome({
             aria-label={
               started ? 'Iniciar pausa' : paused ? 'Continuar jornada' : 'Iniciar jornada'
             }
-            onClick={() => {
-              if (!started && !attendanceSaved)
-                setStartedAt(
-                  new Date().toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' }),
-                )
-              if (!attendanceSaved) setStarted(!started)
-            }}
+            onClick={toggleSession}
           >
             <span className="clock-icon">{started ? '❚❚' : '▶'}</span>
             <span className="clock-label">
@@ -505,7 +759,7 @@ export function SpinolaHome({
               className="clock-end"
               onClick={() => {
                 setCompletedIds(
-                  dayBlocks.filter((block) => block.kind !== 'hueco').map((block) => block.id),
+                  todayBlocks.filter((block) => block.kind !== 'hueco').map((block) => block.id),
                 )
                 setEndedAt(
                   new Date().toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' }),
@@ -517,167 +771,216 @@ export function SpinolaHome({
             </button>
           )}
         </section>
-        <div className="metrics-row">
-          <div className="metric-card metric-card-green">
-            <div className="metric-topline">
-              <span>Lectivas cubiertas</span>
-            </div>
-            <strong>
-              {covered} <small>/ 120 min</small>
-            </strong>
-            <div className="metric-progress">
-              <i style={{ width: `${Math.min(100, (covered / 120) * 100)}%` }} />
-            </div>
-            <p>
-              <b>{Math.round((covered / 120) * 100)}%</b> del horario previsto
-            </p>
+        {allocation.presence > 0 && (
+          <div className={`day-status ${allocation.unassigned > 0 ? 'has-pending' : ''}`}>
+            <span>
+              <strong>
+                Hoy: {formatDuration(allocation.presence)} fichado ·{' '}
+                {allocation.unassigned > 0 ? `${allocation.unassigned} min sin asignar` : 'todo imputado'}
+              </strong>
+              <small>
+                {daySummary.length
+                  ? daySummary.map((item) => `${formatDuration(item.minutes)} ${item.label.toLowerCase()}`).join(' · ')
+                  : 'Aún sin tiempo dentro de tu horario'}
+              </small>
+            </span>
+            {allocation.unassigned > 0 && unassignedChips}
           </div>
-          <div className="metric-card metric-card-violet">
-            <div className="metric-topline">
-              <span>Complementarias</span>
-            </div>
-            <strong>
-              30 <small>min</small>
-            </strong>
-            <div className="metric-progress">
-              <i style={{ width: '25%' }} />
-            </div>
-            <p>
-              <b>30 min</b> registrados hoy
-            </p>
-          </div>
-          <div className="metric-card metric-card-orange">
-            <div className="metric-topline">
-              <span>Bolsa disponible</span>
-            </div>
-            <strong>
-              4 h 30 <small>min</small>
-            </strong>
-            <div className="metric-progress">
-              <i style={{ width: '68%' }} />
-            </div>
-            <p>
-              <b>68%</b> disponible este trimestre
-            </p>
-          </div>
+        )}
+        <div className="teacher-tabs" role="tablist" aria-label="Vista">
+          <button
+            role="tab"
+            aria-selected={teacherTab === 'horario'}
+            className={teacherTab === 'horario' ? 'active' : ''}
+            onClick={() => setTeacherTab('horario')}
+          >
+            Mi horario
+          </button>
+          <button
+            role="tab"
+            aria-selected={teacherTab === 'bolsas'}
+            className={teacherTab === 'bolsas' ? 'active' : ''}
+            onClick={() => setTeacherTab('bolsas')}
+          >
+            Mis bolsas <small>{formatDuration(poolRemaining)} libres</small>
+          </button>
         </div>
-        <section className="teacher-week-card">
-          <div className="section-heading">
-            <div>
-              <h2>Mi semana</h2>
-              <p className="calendar-hint">Vista general de tus clases y actividades previstas</p>
-            </div>
-            <span className="count-pill">Semana del 21–25 sep.</span>
-          </div>
-          <div className="teacher-week-grid">
-            {teacherWeekDays.map((day, index) => (
-              <button
-                className={`teacher-week-day ${index === 1 ? 'today' : ''}`}
-                aria-pressed={selectedDay === index}
-                key={day.short}
-                onClick={() => { setSelectedDay(index); setShowGuide(false) }}
-              >
-                <strong>{day.short}</strong>
-                <span>{index === 1 ? 'Hoy' : `${2 + index} bloques`}</span>
-                {day.activities.map((activity) => (
-                  <small key={activity}>{activity}</small>
-                ))}
-              </button>
-            ))}
-          </div>
-        </section>
-        <section className="content-grid">
-          <div className="timeline-card">
+        {teacherTab === 'bolsas' && (
+          <section className="allocation-card" aria-label="Mis bolsas">
             <div className="section-heading">
               <div>
-                <h2>Horario previsto</h2>
-                <p className="calendar-hint">Tu horario previsto para {selectedTeacherDay.label.toLowerCase()}</p>
-              </div>
-              <div className="calendar-actions">
-                <button className="day-nav-button" onClick={() => moveTeacherDay(-1)} disabled={selectedDay === 0} aria-label="Día anterior">‹</button>
-                <button className="day-nav-button" onClick={() => moveTeacherDay(1)} disabled={selectedDay === teacherWeekDays.length - 1} aria-label="Día siguiente">›</button>
-                <button className="guide-trigger" onClick={() => setShowGuide((value) => !value)}>
-                  <Info size={14} /> Cómo funciona
-                </button>
+                <h2>Mis bolsas · curso 2026/27</h2>
+                <p className="calendar-hint">
+                  Se descuentan solas con el tiempo fichado. Te quedan{' '}
+                  {Math.round((poolRemaining / poolAnnual) * 100)}% de {formatDuration(poolAnnual)}.
+                </p>
               </div>
             </div>
-            <div className="day-calendar">
-              {selectedDay === 1 && nowMinutes >= 480 && nowMinutes <= 1260 && (
-                <div
-                  className="current-time-line"
-                  style={{ top: `${(nowMinutes - 480) * 1.05 + 8}px` }}
-                >
-                  <span>{formatTime(nowMinutes)}</span>
-                  <i />
-                </div>
-              )}
-              {Array.from({ length: 26 }, (_, index) => {
-                const minute = 480 + index * 60
-                return (
-                  <div
-                    className="calendar-row"
-                    key={minute}
-                    onClick={() => openCreate(minute)}
-                    onDragOver={(event) => event.preventDefault()}
-                    onDrop={(event) => moveBlock(event, minute)}
-                  >
-                    <span>{formatTime(minute)}</span>
-                    <div className="calendar-track" />
+            <div className="pool-list">
+              {poolRows.map((pool) => (
+                <div className="pool-row" key={pool.id}>
+                  <div className="pool-row-head">
+                    <span>{pool.label}</span>
+                    <b>{formatDuration(pool.remaining)} libres</b>
                   </div>
-                )
-              })}
-              {positionedBlocks.map(({ block, column, columns }) => (
-                <div
-                  className={`calendar-block ${block.kind} ${block.endMin - block.startMin <= 30 ? 'compact' : ''} ${block.endMin <= nowMinutes ? 'past' : ''}`}
-                  draggable
-                  onDragStart={(event) => event.dataTransfer.setData('blockId', block.id)}
-                  key={block.id}
-                  onClick={() => {
-                    if (suppressClick.current && pointerMoved.current) {
-                      suppressClick.current = false
-                      return
-                    }
-                    suppressClick.current = false
-                    setSelectedId(block.id)
-                  }}
-                  onPointerDown={(event) => beginInteraction(event, block, 'move')}
-                  style={{
-                    top: `${(block.startMin - 480) * 1.05 + 8}px`,
-                    height: `${Math.max((block.endMin - block.startMin) * 1.05 - 8, 28)}px`,
-                    left: `calc(67px + (100% - 79px) * ${column} / ${columns})`,
-                    width: `calc((100% - 79px) / ${columns} - 5px)`,
-                    right: 'auto',
-                  }}
-                >
-                  <strong>
-                    {block.label}
-                    {block.endMin - block.startMin <= 30 && (
-                      <small className="inline-time">
-                        {' '}
-                        · {formatTime(block.startMin)}–{formatTime(block.endMin)}
-                      </small>
-                    )}
-                  </strong>
-                  {block.endMin - block.startMin > 30 && (
+                  <div className="metric-progress">
+                    <i style={{ width: `${Math.min(100, ((pool.usedMin + pool.today) / pool.annualMin) * 100)}%` }} />
+                  </div>
+                  <div className="pool-row-foot">
                     <small>
-                      {formatTime(block.startMin)}–{formatTime(block.endMin)}
+                      {formatDuration(pool.usedMin + pool.today)} de {formatDuration(pool.annualMin)}
+                      {pool.today > 0 && <em> · +{pool.today} min hoy</em>}
                     </small>
-                  )}
-                  <button aria-label={`Editar ${block.label}`} onClick={() => setReview(true)}>
-                    ···
-                  </button>
-                  <span
-                    role="slider"
-                    tabIndex={0}
-                    aria-label={`Cambiar fin de ${block.label}`}
-                    className="resize-handle bottom"
-                    onPointerDown={(event) => beginInteraction(event, block, 'resize-end')}
-                  />
+                    <button onClick={() => openPoolActivity(pool)}>
+                      <Plus size={12} /> {pool.quick}
+                    </button>
+                  </div>
                 </div>
               ))}
             </div>
-          </div>
-        </section>
+          </section>
+        )}
+        {teacherTab === 'horario' && (
+          <section className="content-grid">
+            <div className="timeline-card">
+              <div className="section-heading">
+                <div>
+                  <h2>Horario previsto</h2>
+                  <p className="calendar-hint">
+                    <b>{selectedTeacherDay.label}, {selectedTeacherDay.date}</b>
+                    {selectedDay === todayIndex ? ' · Hoy' : ''}
+                    {selectedDay > todayIndex ? ' · Previsto' : ''}
+                    {trackedRanges.length > 0 ? ' · Franja verde: tiempo fichado' : ''}
+                  </p>
+                </div>
+                <div className="calendar-actions">
+                  <button className="day-nav-button" onClick={() => moveTeacherDay(-1)} disabled={selectedDay === 0} aria-label="Día anterior">‹</button>
+                  <button className="day-nav-button" onClick={() => moveTeacherDay(1)} disabled={selectedDay === teacherWeekDays.length - 1} aria-label="Día siguiente">›</button>
+                  <PopoverTrigger>
+                    <Button variant="ghost" size="sm" className="guide-trigger">
+                      <Info size={14} /> Cómo funciona
+                    </Button>
+                    <PopoverContent placement="bottom end" className="guide-popover">
+                      <strong>Así se calcula tu jornada</strong>
+                      <span>
+                        El fichaje registra tu presencia. Cada bloque del horario se imputa como
+                        lectivo, complementario o de bolsa sólo cuando corresponde.
+                      </span>
+                      <span className="guide-legend">
+                        <i className="legend-dot lectiva" /> Lectiva{' '}
+                        <i className="legend-dot complementaria" /> Complementaria{' '}
+                        <i className="legend-dot bolsa" /> Bolsa
+                      </span>
+                    </PopoverContent>
+                  </PopoverTrigger>
+                </div>
+              </div>
+              <div className="day-picker" role="group" aria-label="Día de la semana">
+                {teacherWeekDays.map((day, index) => (
+                  <button
+                    key={day.short}
+                    className={`day-picker-item ${selectedDay === index ? 'selected' : ''}`}
+                    aria-pressed={selectedDay === index}
+                    onClick={() => setSelectedDay(index)}
+                  >
+                    <span>{day.short}</span>
+                    <strong>{day.date.split(' ')[0]}</strong>
+                    {index === todayIndex && <i aria-label="Hoy" />}
+                  </button>
+                ))}
+              </div>
+              <div className="day-calendar">
+                {selectedDay === todayIndex && nowMinutes >= 480 && nowMinutes <= 1260 && (
+                  <div
+                    className="current-time-line"
+                    style={{ top: `${(nowMinutes - 480) * 1.05 + 8}px` }}
+                  >
+                    <span>{formatTime(nowMinutes)}</span>
+                    <i />
+                  </div>
+                )}
+                {trackedRanges.map((range) => (
+                  <div
+                    key={range.start}
+                    className="tracked-range"
+                    aria-label={`Fichado de ${formatTime(range.start)} a ${formatTime(range.end)}`}
+                    style={{
+                      top: `${(range.start - 480) * 1.05 + 8}px`,
+                      height: `${(range.end - range.start) * 1.05}px`,
+                    }}
+                  />
+                ))}
+                {Array.from({ length: 26 }, (_, index) => {
+                  const minute = 480 + index * 60
+                  return (
+                    <div
+                      className="calendar-row"
+                      key={minute}
+                      onClick={() => {
+                        setCreateDay(slotOf(selectedDay))
+                        openCreate(minute)
+                      }}
+                      onDragOver={(event) => event.preventDefault()}
+                      onDrop={(event) => moveBlock(event, minute)}
+                    >
+                      <span>{formatTime(minute)}</span>
+                      <div className="calendar-track" />
+                    </div>
+                  )
+                })}
+                {layoutOverlaps(blocksOfDay(selectedDay)).map(({ block, column, columns }) => (
+                  <div
+                    className={`calendar-block ${block.kind} ${block.endMin - block.startMin <= 30 ? 'compact' : ''} ${selectedDay < todayIndex || (selectedDay === todayIndex && block.endMin <= nowMinutes) ? 'past' : ''}`}
+                    draggable
+                    onDragStart={(event) => event.dataTransfer.setData('blockId', block.id)}
+                    key={block.id}
+                    onClick={() => {
+                      if (suppressClick.current && pointerMoved.current) {
+                        suppressClick.current = false
+                        return
+                      }
+                      suppressClick.current = false
+                      setSelectedId(block.id)
+                    }}
+                    onPointerDown={(event) => beginInteraction(event, block, 'move')}
+                    style={{
+                      top: `${(block.startMin - 480) * 1.05 + 8}px`,
+                      height: `${Math.max((block.endMin - block.startMin) * 1.05 - 8, 28)}px`,
+                      left: `calc(67px + (100% - 79px) * ${column} / ${columns})`,
+                      width: `calc((100% - 79px) / ${columns} - 5px)`,
+                      right: 'auto',
+                    }}
+                  >
+                    <strong>
+                      {block.label}
+                      {block.endMin - block.startMin <= 30 && (
+                        <small className="inline-time">
+                          {' '}
+                          · {formatTime(block.startMin)}–{formatTime(block.endMin)}
+                        </small>
+                      )}
+                    </strong>
+                    {block.endMin - block.startMin > 30 && (
+                      <small>
+                        {formatTime(block.startMin)}–{formatTime(block.endMin)}
+                      </small>
+                    )}
+                    <button aria-label={`Editar ${block.label}`} onClick={() => setReview(true)}>
+                      ···
+                    </button>
+                    <span
+                      role="slider"
+                      tabIndex={0}
+                      aria-label={`Cambiar fin de ${block.label}`}
+                      className="resize-handle bottom"
+                      onPointerDown={(event) => beginInteraction(event, block, 'resize-end')}
+                    />
+                  </div>
+                ))}
+              </div>
+            </div>
+          </section>
+        )}
         {createOpen && (
           <div className="modal-backdrop" role="presentation" onClick={() => setCreateOpen(false)}>
             <div
@@ -698,7 +1001,7 @@ export function SpinolaHome({
               </div>
               <h3>Añadir al horario</h3>
               <p className="modal-note">
-                Se añadirá a las horas de hoy y quedará guardado en este dispositivo.
+                Se añadirá a tu horario del {teacherWeekDays[slotOf(createDay)]?.label.toLowerCase() ?? 'día'}.
               </p>
               <div className="create-fields">
                 <label>
@@ -748,10 +1051,25 @@ export function SpinolaHome({
                     placeholder="Ej. Inglés · 1º ESO"
                   />
                 </label>
+                {createKind === 'bolsa' && (
+                  <label className="create-full">
+                    Bolsa
+                    <select
+                      value={createPool}
+                      onChange={(event) => setCreatePool(event.target.value as PoolId)}
+                    >
+                      {poolRows.map((pool) => (
+                        <option key={pool.id} value={pool.id}>
+                          {pool.label} · {formatDuration(pool.remaining)} libres
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                )}
               </div>
               <p className="create-source">
                 {createKind === 'bolsa'
-                  ? 'Imputa a bolsa complementaria'
+                  ? `Imputa a la bolsa de ${pools.find((pool) => pool.id === createPool)?.label.toLowerCase()} sólo el tiempo fichado`
                   : createKind === 'hueco'
                     ? 'No consume bolsa'
                     : `Imputa a ${kindLabel(createKind).toLowerCase()}`}
@@ -799,7 +1117,9 @@ export function SpinolaHome({
                 <div>
                   <span>Imputación</span>
                   <strong>
-                    {selected.kind === 'bolsa' ? 'Bolsa complementaria' : kindLabel(selected.kind)}
+                    {selected.kind === 'bolsa'
+                      ? `Bolsa · ${pools.find((pool) => pool.id === (selected.pool ?? 'reuniones'))?.label}`
+                      : kindLabel(selected.kind)}
                   </strong>
                 </div>
               </div>
@@ -857,20 +1177,6 @@ export function SpinolaHome({
             </div>
           </div>
         )}
-        {showGuide && (
-          <div className="guide-popover">
-            <strong>Así se calcula tu jornada</strong>
-            <span>
-              El fichaje registra tu presencia. Cada bloque del horario se imputa como lectivo,
-              complementario o de bolsa sólo cuando corresponde.
-            </span>
-            <span className="guide-legend">
-              <i className="legend-dot lectiva" /> Lectiva{' '}
-              <i className="legend-dot complementaria" /> Complementaria{' '}
-              <i className="legend-dot bolsa" /> Bolsa
-            </span>
-          </div>
-        )}
         {review && (
           <div className="review-backdrop" role="presentation" onClick={() => setReview(false)}>
             <div
@@ -882,8 +1188,10 @@ export function SpinolaHome({
             >
               <div className="review-head">
                 <div>
-                  <strong id="review-title">Termina tu jornada</strong>
-                  <span>Confirma lo realizado. Si hay una diferencia, solicita una corrección para que quede trazabilidad.</span>
+                  <strong id="review-title">Tu jornada de hoy</strong>
+                  <span>
+                    {startedAt}–{endedAt} · {formatDuration(allocation.presence)} fichado
+                  </span>
                 </div>
                 <button
                   className="review-close"
@@ -893,53 +1201,56 @@ export function SpinolaHome({
                   ×
                 </button>
               </div>
-              <div className="review-items">
-                {dayBlocks
-                  .filter((block) => block.kind !== 'hueco')
-                  .map((block) => (
-                    <label key={block.id}>
-                      <input
-                        type="checkbox"
-                        checked={completedIds.includes(block.id)}
-                        onChange={(event) =>
-                          setCompletedIds((current) =>
-                            event.target.checked
-                              ? [...current, block.id]
-                              : current.filter((id) => id !== block.id),
-                          )
-                        }
-                      />
-                      <span>
-                        {block.label}
-                        <small>
-                          {block.start}–{block.end}
-                        </small>
-                      </span>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setCorrectionRequested(true)
-                          setReview(false)
-                        }}
-                      >
-                        Solicitar corrección
-                      </button>
-                    </label>
-                  ))}
+              <div className="review-summary">
+                {daySummary.map((item) => (
+                  <div className="review-line" key={item.key}>
+                    <i className={`legend-dot ${item.dot}`} />
+                    <span>{item.label}</span>
+                    <b>{formatDuration(item.minutes)}</b>
+                  </div>
+                ))}
+                {missedBlocks.length > 0 && (
+                  <div className="review-line warn">
+                    <i className="legend-dot hueco" />
+                    <span>Sin fichaje: {missedBlocks.map((block) => block.label).join(', ')}</span>
+                    <b>0 min</b>
+                  </div>
+                )}
+                {!daySummary.length && !missedBlocks.length && (
+                  <div className="review-line">
+                    <span>Sin tiempo dentro de tu horario</span>
+                  </div>
+                )}
               </div>
+              {allocation.unassigned > 0 && (
+                <div className="allocation-unassigned">
+                  <span>
+                    <strong>{allocation.unassigned} min sin asignar → ¿qué hiciste?</strong>
+                    <small>Un toque y queda imputado. Si no eliges, cuenta sólo como presencia.</small>
+                  </span>
+                  {unassignedChips}
+                </div>
+              )}
               <div className="review-actions">
-                <button className="review-cancel" onClick={() => setReview(false)}>
-                  Seguir más tarde
+                <button
+                  className="review-correction"
+                  onClick={() => {
+                    setCorrectionRequested(true)
+                    setReview(false)
+                  }}
+                >
+                  Algo no cuadra
                 </button>
                 <button
                   className="save-day"
                   onClick={() => {
+                    if (allocation.unassigned > 0) assignUnassigned('presencia')
                     setAttendanceSaved(true)
                     setStarted(false)
                     setReview(false)
                   }}
                 >
-                  Guardar jornada
+                  Confirmar jornada
                 </button>
               </div>
             </div>
@@ -955,12 +1266,12 @@ export function SpinolaHome({
       current.map((block) =>
         block.id === id
           ? {
-              ...block,
-              startMin: minute,
-              endMin: minute + (block.endMin - block.startMin),
-              start: formatTime(minute),
-              end: formatTime(minute + (block.endMin - block.startMin)),
-            }
+            ...block,
+            startMin: minute,
+            endMin: minute + (block.endMin - block.startMin),
+            start: formatTime(minute),
+            end: formatTime(minute + (block.endMin - block.startMin)),
+          }
           : block,
       ),
     )
@@ -988,18 +1299,23 @@ export function SpinolaHome({
 
 export function DemoLogin({ onSelect, onReset }: { onSelect: (id: string) => void; onReset: () => void }) {
   const navigate = useNavigate()
+  useEffect(() => {
+    const onKey = (event: globalThis.KeyboardEvent) => {
+      if (event.altKey && event.shiftKey && event.code === 'KeyR') onReset()
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [onReset])
   return (
     <div className="login-page">
       <div className="login-panel">
         <div className="login-brand">
           <img src="/brand/spinola-logo.png" alt="Fundación Spínola" className="login-logo" />
-          <small>Entorno de demostración</small>
+          <small>Control horario</small>
         </div>
-        <p className="eyebrow">Acceso a la demo</p>
-        <h1>¿Quién está entrando?</h1>
-        <p className="login-intro">
-          Elige un perfil para ver la experiencia que tendría cada persona dentro de la plataforma.
-        </p>
+        <p className="eyebrow">Iniciar sesión</p>
+        <h1>Elige tu cuenta</h1>
+        <p className="login-intro">Accede con tu cuenta de la Fundación.</p>
         <div className="login-users">
           {demoUsers.map((demoUser) => (
             <button
@@ -1017,16 +1333,10 @@ export function DemoLogin({ onSelect, onReset }: { onSelect: (id: string) => voi
                   {roleLabel(demoUser.role)} · {demoUser.centre}
                 </small>
               </span>
-              <ChevronDown size={16} />
+              <ChevronRight size={16} />
             </button>
           ))}
         </div>
-        <small className="login-footnote">
-          Demo local · no se solicitan credenciales ni se envían datos.
-        </small>
-        <button className="demo-reset-button" onClick={onReset}>
-          Reiniciar escenario de demo
-        </button>
       </div>
     </div>
   )
@@ -1036,19 +1346,53 @@ function ManagerView({
   user,
   approved,
   correctionRequested,
-  onResetDemo,
   onApprove,
   initialTab,
   nowMinutes,
+  luciaPools,
+  luciaPresence,
 }: {
   user: DemoUser
   approved: boolean
   correctionRequested: boolean
   onApprove: () => void
-  onResetDemo: () => void
   initialTab: 'schedule' | 'overview' | 'teachers' | 'incidents' | 'settings'
   nowMinutes: number
+  luciaPools: { id: PoolId; label: string; annualMin: number; usedMin: number; today: number }[]
+  luciaPresence: number
 }) {
+  const teamPools = [
+    {
+      name: 'Lucía Martín',
+      presence: luciaPresence,
+      used: Object.fromEntries(luciaPools.map((pool) => [pool.id, pool.usedMin + pool.today])),
+    },
+    {
+      name: 'Diego Ruiz',
+      presence: Math.max(0, Math.min(312, nowMinutes - 498)),
+      used: { evaluacion: 480, familias: 150, reuniones: 600 },
+    },
+    {
+      name: 'Inés Valdés',
+      presence: Math.max(0, Math.min(295, nowMinutes - 512)),
+      used: { evaluacion: 300, familias: 240, reuniones: 420 },
+    },
+  ] as { name: string; presence: number; used: Record<PoolId, number> }[]
+  function exportPoolsCsv() {
+    const header = ['Docente', 'Centro', 'Presencia hoy (min)', ...luciaPools.map((pool) => `${pool.label} (min usados / anuales)`)]
+    const rows = teamPools.map((row) => [
+      row.name,
+      'Santa Rafaela · Madrid',
+      String(row.presence),
+      ...luciaPools.map((pool) => `${row.used[pool.id] ?? 0} / ${pool.annualMin}`),
+    ])
+    const csv = [header, ...rows].map((line) => line.map((cell) => `"${cell}"`).join(';')).join('\n')
+    const link = document.createElement('a')
+    link.href = URL.createObjectURL(new Blob([`\uFEFF${csv}`], { type: 'text/csv;charset=utf-8' }))
+    link.download = 'bolsas-santa-rafaela-2026-27.csv'
+    link.click()
+    URL.revokeObjectURL(link.href)
+  }
   const [activeTab, setActiveTab] = useState<
     'schedule' | 'overview' | 'teachers' | 'incidents' | 'settings'
   >(initialTab)
@@ -1308,8 +1652,8 @@ function ManagerView({
       <div className="empty-state">
         <ShieldCheck size={26} />
         <strong>Este centro aún no tiene horario activo</strong>
-        <span>La demo mostraría aquí la carga y validación de una plantilla.</span>
-        <button onClick={() => setScenario('pending')}>Ver escenario con datos</button>
+        <span>Carga una plantilla para empezar a registrar jornadas.</span>
+        <button onClick={() => setScenario('pending')}>Cargar plantilla</button>
       </div>
     ) : (
       <div className={`incident-card ${approved ? 'approved' : ''}`}>
@@ -1356,7 +1700,7 @@ function ManagerView({
       <section className="manager-week-overview" aria-label="Calendario semanal del equipo docente">
         <div className="section-heading manager-calendar-heading">
           <div className="manager-calendar-week-label">
-            Semana {overviewWeekOffset === 0 ? 'actual' : overviewWeekOffset > 0 ? `+${overviewWeekOffset}` : overviewWeekOffset} · 21–25 sep. 2026
+            Semana {overviewWeekOffset === 0 ? 'actual' : overviewWeekOffset > 0 ? `+${overviewWeekOffset}` : overviewWeekOffset} · {weekRangeLabel(overviewWeekOffset)}
           </div>
           <div className="manager-calendar-actions">
             <IconButton label="Semana anterior" variant="outline" size="icon-sm" onPress={() => setOverviewWeekOffset((value) => value - 1)}>
@@ -1912,7 +2256,7 @@ function ManagerView({
       </div>
       <div>
         <span className="activity-dot gray" />
-        <strong>Centro piloto norte</strong>
+        <strong>Nuevo centro</strong>
         <span>Horario pendiente de validar</span>
         <b>Preparación</b>
       </div>
@@ -1927,7 +2271,7 @@ function ManagerView({
     ],
     teachers: ['Profesores', 'Asigna horarios y consulta el detalle de cada persona.'],
     incidents: ['Revisiones', 'Valida las diferencias entre lo planificado y lo registrado.'],
-    settings: ['Configuración', 'Prepara el escenario de la demo y las reglas del centro.'],
+    settings: ['Configuración', 'Bolsas y reglas de imputación del centro.'],
   }[activeTab]
 
   return (
@@ -1969,6 +2313,51 @@ function ManagerView({
               {incidentCard}
             </section>
           </div>
+          <section className="team-pools">
+            <div className="section-heading">
+              <div>
+                <h2>Bolsas del equipo · curso 2026/27</h2>
+                <p className="calendar-hint">
+                  Se alimenta sola con los fichajes. Exporta por persona y concepto para gestoría o Educamos.
+                </p>
+              </div>
+              <Button variant="outline" size="sm" onPress={exportPoolsCsv}>
+                <Download size={14} /> Exportar CSV
+              </Button>
+            </div>
+            <table className="team-pools-table">
+              <thead>
+                <tr>
+                  <th>Docente</th>
+                  <th>Presencia hoy</th>
+                  {luciaPools.map((pool) => (
+                    <th key={pool.id}>{pool.label}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {teamPools.map((row) => (
+                  <tr key={row.name}>
+                    <td>{row.name}</td>
+                    <td>{row.presence ? formatDuration(row.presence) : '—'}</td>
+                    {luciaPools.map((pool) => {
+                      const used = row.used[pool.id] ?? 0
+                      return (
+                        <td key={pool.id}>
+                          <span className="team-pool-cell">
+                            {formatDuration(used)} <small>/ {pool.annualMin / 60} h</small>
+                          </span>
+                          <span className="metric-progress">
+                            <i style={{ width: `${Math.min(100, (used / pool.annualMin) * 100)}%` }} />
+                          </span>
+                        </td>
+                      )
+                    })}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </section>
         </div>
       )}
       {activeTab === 'teachers' && (
@@ -1990,16 +2379,8 @@ function ManagerView({
             <div className="section-heading lower-heading">
               <div>
                 <h2>Actividad reciente</h2>
-                <p className="calendar-hint">Resumen de los centros piloto</p>
+                <p className="calendar-hint">Resumen de los centros</p>
               </div>
-              <select
-                className="scenario-select"
-                value={scenario}
-                onChange={(event) => setScenario(event.target.value)}
-              >
-                <option value="pending">Escenario: incidencia pendiente</option>
-                <option value="empty">Escenario: sin horario activo</option>
-              </select>
             </div>
             {activityList}
           </section>
@@ -2012,7 +2393,7 @@ function ManagerView({
               <div className="progress">
                 <i style={{ width: '91%' }} />
               </div>
-              <small>91% del equipo piloto</small>
+              <small>91% del equipo</small>
             </div>
             <div className="side-kpi">
               <span>Horas imputadas</span>
@@ -2029,25 +2410,43 @@ function ManagerView({
           <section className="settings-card">
             <div className="section-heading">
               <div>
-                <h2>Escenario de demostración</h2>
+                <h2>Bolsas y reglas · curso 2026/27</h2>
                 <p className="calendar-hint">
-                  Deja la demo lista para repetir el recorrido de fichaje y revisión desde cero.
+                  Cómo se imputa el tiempo fichado en {user.centre}.
                 </p>
               </div>
               <ShieldCheck size={22} />
             </div>
+            {luciaPools.map((pool) => (
+              <div className="settings-row" key={pool.id}>
+                <div>
+                  <strong>{pool.label}</strong>
+                  <p>Bolsa anual por docente. Se descuenta sólo con tiempo fichado.</p>
+                </div>
+                <b>{pool.annualMin / 60} h</b>
+              </div>
+            ))}
             <div className="settings-row">
               <div>
-                <strong>Reiniciar escenario</strong>
-                <p>Restablece fichajes, correcciones y aprobaciones locales.</p>
+                <strong>Recreos y huecos</strong>
+                <p>No computan aunque el fichaje siga abierto.</p>
               </div>
-              <button className="schedule-add" onClick={onResetDemo}>
-                Reiniciar escenario de demo
-              </button>
+              <b>No computan</b>
             </div>
-            <p className="settings-note">
-              Es una demo local: no borra datos de ningún centro real ni envía información.
-            </p>
+            <div className="settings-row">
+              <div>
+                <strong>Tiempo fuera de horario</strong>
+                <p>Queda sin asignar hasta que el docente indica qué hizo.</p>
+              </div>
+              <b>Lo clasifica el docente</b>
+            </div>
+            <div className="settings-row">
+              <div>
+                <strong>Correcciones</strong>
+                <p>Toda corrección conserva el motivo y requiere aprobación de dirección.</p>
+              </div>
+              <b>Con aprobación</b>
+            </div>
           </section>
         </div>
       )}
@@ -2089,7 +2488,7 @@ function layoutOverlaps(items: Block[]) {
       column = columns.length
       columns.push([])
     }
-    ;(columns[column] ??= []).push(block)
+    ; (columns[column] ??= []).push(block)
     const overlapping = items.filter(
       (other) =>
         other.id !== block.id && other.startMin < block.endMin && other.endMin > block.startMin,
@@ -2114,7 +2513,7 @@ function layoutScheduleOverlaps(items: CenterScheduleBlock[]) {
       column = columns.length
       columns.push([])
     }
-    ;(columns[column] ??= []).push(block)
+    ; (columns[column] ??= []).push(block)
     const overlapping = sorted.filter(
       (other) =>
         other.id !== block.id && other.startMin < block.endMin && other.endMin > block.startMin,
